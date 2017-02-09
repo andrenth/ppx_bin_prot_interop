@@ -1,0 +1,20 @@
+opam-version: "1.2"
+maintainer: "andrenth@gmail.com"
+authors: ["Andre Nathan <andre@digirati.com.br>"]
+homepage: "https://github.com/andrenth/ppx_bin_prot_interop"
+bug-reports: "https://github.com/andrenth/ppx_bin_prot_interop/issues"
+dev-repo: "https://github.com/andrenth/ppx_bin_prot_interop.git"
+license: "MIT"
+build: [
+  ["jbuilder" "build-package" "ppx_bin_prot_interop" "-j" jobs]
+]
+depends: [
+  "bin_prot"
+  "jbuilder"
+  "ppx_bench"
+  "ppx_driver"
+  "ppx_type_conv"
+  "ppx_tools"     {>= "0.99.3"}
+]
+available: [ ocaml-version >= "4.03.0" ]
+descr: "Generation of bin_prot readers and writers from types in foreign languages"

@@ -1,0 +1,5 @@
+type t_bool   = bool   [@@deriving bin_io_interop ~php]
+type t_char   = char   [@@deriving bin_io_interop ~php]
+type t_int    = int    [@@deriving bin_io_interop ~php]
+type t_float  = float  [@@deriving bin_io_interop ~php]
+type t_string = string [@@deriving bin_io_interop ~php]

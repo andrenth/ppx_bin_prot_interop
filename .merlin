@@ -1,0 +1,7 @@
+S src
+B _build/default/src
+
+PKG compiler-libs.common
+PKG ppx_tools
+PKG ppx_type_conv
+PKG unix

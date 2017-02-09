@@ -1,0 +1,32 @@
+lib: [
+  "_build/default/src/ppx_bin_prot_interop.cmxs"
+  "_build/default/src/ppx_bin_prot_interop.a"
+  "_build/default/src/ppx_bin_prot_interop.cmxa"
+  "_build/default/src/ppx_bin_prot_interop.cma"
+  "_build/default/src/ppx_bin_prot_interop_php.pp.mli"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_php.cmti"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_php.cmt"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_php.cmx"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_php.cmi"
+  "_build/default/src/ppx_bin_prot_interop_intf.pp.ml"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_intf.cmt"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_intf.cmx"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_intf.cmi"
+  "_build/default/src/ppx_bin_prot_interop_impl.pp.ml"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_impl.cmt"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_impl.cmx"
+  "_build/default/src/ppx_bin_prot_interop__Ppx_bin_prot_interop_impl.cmi"
+  "_build/default/src/ppx_bin_prot_interop__.ml-gen"
+  "_build/default/src/ppx_bin_prot_interop__.cmt"
+  "_build/default/src/ppx_bin_prot_interop__.cmx"
+  "_build/default/src/ppx_bin_prot_interop__.cmi"
+  "_build/default/src/ppx_bin_prot_interop.pp.ml"
+  "_build/default/src/ppx_bin_prot_interop.cmt"
+  "_build/default/src/ppx_bin_prot_interop.cmx"
+  "_build/default/src/ppx_bin_prot_interop.cmi"
+  "_build/default/META.ppx_bin_prot_interop" {"META"}
+]
+doc: [
+  "README.md"
+  "LICENSE.txt"
+]

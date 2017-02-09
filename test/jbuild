@@ -1,0 +1,12 @@
+(alias
+ ((name runtest)
+  (deps (test_runner.exe))
+  (action "./test_runner.exe")))
+
+(executables
+ ((names (test_runner basic))
+  (libraries
+   (bin_prot
+    core
+    core_bench
+    oUnit))))
