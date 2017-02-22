@@ -110,153 +110,114 @@ and string_of_app = function
   | `Size  fn -> string_of_size_function  fn
   | `Get   fn -> string_of_get_function   fn
 
-and string_of_read_function = function
+and string_of_read_function fn =
+  let ns = "bin_prot\\read" in
+  let to_string = string_of_expr in
+  match fn with
   | `Bin_read_int_8bit (buf, pos) ->
-      sprintf "bin_read_int_8bit(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_int_8bit(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_int_16bit (buf, pos) ->
-      sprintf "bin_read_int_16bit(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_int_16bit(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_variant_int (buf, pos) ->
-      sprintf "bin_read_variant_int(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_variant_int(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_bool (buf, pos) ->
-      sprintf "bin_read_bool(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_bool(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_char (buf, pos) ->
-      sprintf "bin_read_char(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_char(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_int (buf, pos) ->
-      sprintf "bin_read_int(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_int(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_float (buf, pos) ->
-      sprintf "bin_read_float(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_float(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_string (buf, pos) ->
-      sprintf "bin_read_string(%s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_string(%s, %s)"
+        ns (to_string buf) (to_string pos)
   | `Bin_read_list (conv, buf, pos) ->
-      sprintf "bin_read_list(%s, %s, %s)"
-        (string_of_expr conv)
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_list(%s, %s, %s)"
+        ns (to_string conv) (to_string buf) (to_string pos)
   | `Bin_read_custom (name, [], buf, pos) ->
-      sprintf "bin_read_%s(%s, %s)"
-        name
-        (string_of_expr buf)
-        (string_of_expr pos)
+      sprintf "%s\\bin_read_%s(%s, %s)"
+        ns name (to_string buf) (to_string pos)
   | `Bin_read_custom (name, convs, buf, pos) ->
-      sprintf "bin_read_%s(%s, %s, %s)"
-        name
-        (String.concat ~sep:", " (List.map convs ~f:string_of_expr))
-        (string_of_expr buf)
-        (string_of_expr pos)
+      let reader_args =
+        String.concat ~sep:", " (List.map convs ~f:to_string) in
+      sprintf "%s\\bin_read_%s(%s, %s, %s)"
+        ns name reader_args (to_string buf) (to_string pos)
 
-and string_of_write_function = function
+and string_of_write_function fn =
+  let ns = "bin_prot\\write" in
+  let to_string = string_of_expr in
+  match fn with
   | `Bin_write_int_8bit (buf, pos, value) ->
-      sprintf "bin_write_int_8bit(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_int_8bit(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_int_16bit (buf, pos, value) ->
-      sprintf "bin_write_int_8bit(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_int_8bit(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_variant_int (buf, pos, value) ->
-      sprintf "bin_write_variant_int(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_variant_int(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_bool (buf, pos, value) ->
-      sprintf "bin_write_bool(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_bool(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_char (buf, pos, value) ->
-      sprintf "bin_write_char(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_char(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_int (buf, pos, value) ->
-      sprintf "bin_write_int(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_int(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_float (buf, pos, value) ->
-      sprintf "bin_write_float(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_float(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_string (buf, pos, value) ->
-      sprintf "bin_write_string(%s, %s, %s)"
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_string(%s, %s, %s)"
+        ns (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_list (conv, buf, pos, value) ->
-      sprintf "bin_write_list(%s, %s, %s, %s)"
-        (string_of_expr conv)
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_list(%s, %s, %s, %s)"
+        ns (to_string conv) (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_custom (name, [], buf, pos, value) ->
-      sprintf "bin_write_%s(%s, %s, %s)"
-        name
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      sprintf "%s\\bin_write_%s(%s, %s, %s)"
+        ns name (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_custom (name, convs, buf, pos, value) ->
-      sprintf "bin_write_%s(%s, %s, %s, %s)"
-        name
-        (String.concat ~sep:", " (List.map convs ~f:string_of_expr))
-        (string_of_expr buf)
-        (string_of_expr pos)
-        (string_of_expr value)
+      let writer_args =
+        String.concat ~sep:", " (List.map convs ~f:to_string) in
+      sprintf "%s\\bin_write_%s(%s, %s, %s, %s)"
+        ns name writer_args (to_string buf) (to_string pos) (to_string value)
 
-and string_of_size_function = function
+and string_of_size_function fn =
+  let ns = "bin_prot\\size" in
+  let to_string = string_of_expr in
+  match fn with
   | `Bin_size_int_8bit value ->
-      sprintf "bin_size_int_8bit(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_int_8bit(%s)" ns (to_string value)
   | `Bin_size_int_16bit value ->
-      sprintf "bin_size_int_16bit(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_int_16bit(%s)" ns (to_string value)
   | `Bin_size_variant_int value ->
-      sprintf "bin_size_variant_int(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_variant_int(%s)" ns (to_string value)
   | `Bin_size_bool value ->
-      sprintf "bin_size_bool(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_bool(%s)" ns (to_string value)
   | `Bin_size_char value ->
-      sprintf "bin_size_char(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_char(%s)" ns (to_string value)
   | `Bin_size_int value ->
-      sprintf "bin_size_int(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_int(%s)" ns (to_string value)
   | `Bin_size_float value ->
-      sprintf "bin_size_float(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_float(%s)" ns (to_string value)
   | `Bin_size_string value ->
-      sprintf "bin_size_string(%s)"
-        (string_of_expr value)
+      sprintf "%s\\bin_size_string(%s)" ns (to_string value)
   | `Bin_size_list (conv, value) ->
-      sprintf "bin_size_list(%s, %s)"
-        (string_of_expr conv)
-        (string_of_expr value)
+      sprintf "%s\\bin_size_list(%s, %s)" ns (to_string conv) (to_string value)
   | `Bin_size_custom (name, [], value) ->
-      sprintf "bin_size_%s(%s)" name (string_of_expr value)
+      sprintf "%s\\bin_size_%s(%s)" ns name (to_string value)
   | `Bin_size_custom (name, convs, value) ->
-      sprintf "bin_size_%s(%s, %s)"
-        name
-        (String.concat ~sep:", " (List.map convs ~f:string_of_expr))
-        (string_of_expr value)
+      let sizer_args =
+        String.concat ~sep:", " (List.map convs ~f:to_string) in
+      sprintf "%s\\bin_size_%s(%s, %s)" ns name sizer_args (to_string value)
 
 and string_of_get_function = function
   | `At  (e, i) -> sprintf "%s[%d]"     (string_of_expr e) i
