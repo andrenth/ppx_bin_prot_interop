@@ -2,6 +2,45 @@ let split_on_char = String.split_on_char
 
 open StdLabels
 
+module Full_type_name = struct
+  type t =
+    { path : string list
+    ; name : string
+    }
+
+  let make_path p =
+    Filename.basename p
+    |> split_on_char '.'
+    |> List.filter ~f:((<>) "ml")
+    |> List.map ~f:String.capitalize
+
+  let make path name =
+    { path = make_path path
+    ; name
+    }
+
+  let path t =
+    t.path
+
+  let name t =
+    t.name
+
+  let to_string t =
+    let p = t |> path |> String.concat ~sep:"." in
+    p ^ "." ^ name t
+
+  let init_and_last l =
+    let rec loop acc = function
+      | []    -> failwith "Full_type_name.of_list: empty list"
+      | [x]   -> (List.rev acc, x)
+      | x::xs -> loop (x::acc) xs in
+    loop [] l
+
+  let of_list l =
+    let path, name = init_and_last l in
+    { name; path }
+end
+
 module Interop = struct
   module Error = struct
     type t =
@@ -62,7 +101,7 @@ module Interop = struct
       | `Bin_read_float of t * t
       | `Bin_read_string of t * t
       | `Bin_read_list of t * t * t
-      | `Bin_read_custom of string * t list * t * t
+      | `Bin_read_custom of Full_type_name.t * t list * t * t
       ]
 
    and write =
@@ -75,7 +114,7 @@ module Interop = struct
       | `Bin_write_float of t * t * t
       | `Bin_write_string of t * t * t
       | `Bin_write_list of t * t * t * t
-      | `Bin_write_custom of string * t list * t * t * t
+      | `Bin_write_custom of Full_type_name.t * t list * t * t * t
       ]
 
    and size =
@@ -88,7 +127,7 @@ module Interop = struct
       | `Bin_size_float of t
       | `Bin_size_string of t
       | `Bin_size_list of t * t
-      | `Bin_size_custom of string * t list * t
+      | `Bin_size_custom of Full_type_name.t * t list * t
       ]
 
     and get =
@@ -168,18 +207,19 @@ module Interop = struct
       ; rev_exprs = []
       }
 
-    let call ?(conv = []) type_name =
+    let call ?(conv = []) ftn =
       let buf = Var.named "buf" in
       let pos = Var.named "pos" in
       let read x = `App (`Read x) in
-      match type_name, conv with
+      let name = Full_type_name.name ftn in
+      match name, conv with
       | "bool",   []  -> read (`Bin_read_bool   (buf, pos))
       | "char",   []  -> read (`Bin_read_char   (buf, pos))
       | "int",    []  -> read (`Bin_read_int    (buf, pos))
       | "float",  []  -> read (`Bin_read_float  (buf, pos))
       | "string", []  -> read (`Bin_read_string (buf, pos))
       | "list",   [c] -> read (`Bin_read_list   (c, buf, pos))
-      | t,        cs  -> read (`Bin_read_custom (t, cs, buf, pos))
+      | _,        cs  -> read (`Bin_read_custom (ftn, cs, buf, pos))
   end
 
   module Write = struct
@@ -196,18 +236,19 @@ module Interop = struct
       ; rev_exprs = []
       }
 
-    let call ?(conv = []) type_name value =
+    let call ?(conv = []) ftn value =
       let buf = Var.named "buf" in
       let pos = Var.named "pos" in
       let write x = `App (`Write x) in
-      match type_name, conv with
+      let name = Full_type_name.name ftn in
+      match name, conv with
       | "bool",   []  -> write (`Bin_write_bool   (buf, pos, value))
       | "char",   []  -> write (`Bin_write_char   (buf, pos, value))
       | "int",    []  -> write (`Bin_write_int    (buf, pos, value))
       | "float",  []  -> write (`Bin_write_float  (buf, pos, value))
       | "string", []  -> write (`Bin_write_string (buf, pos, value))
       | "list",   [c] -> write (`Bin_write_list   (c, buf, pos, value))
-      | t,        cs  -> write (`Bin_write_custom (t, cs, buf, pos, value))
+      | _,        cs  -> write (`Bin_write_custom (ftn, cs, buf, pos, value))
   end
 
   module Size = struct
@@ -224,16 +265,17 @@ module Interop = struct
       ; rev_exprs = []
       }
 
-    let call ?(conv = []) type_name value =
+    let call ?(conv = []) ftn value =
       let size x = `App (`Size x) in
-      match type_name, conv with
+      let name = Full_type_name.name ftn in
+      match name, conv with
       | "bool",   []  -> size (`Bin_size_bool   value)
       | "char",   []  -> size (`Bin_size_char   value)
       | "int",    []  -> size (`Bin_size_int    value)
       | "float",  []  -> size (`Bin_size_float  value)
       | "string", []  -> size (`Bin_size_string value)
       | "list",   [c] -> size (`Bin_size_list   (c, value))
-      | t,        cs  -> size (`Bin_size_custom (t, cs, value))
+      | _,        cs  -> size (`Bin_size_custom (ftn, cs, value))
   end
 
   type t =
@@ -247,32 +289,4 @@ module Interop = struct
     ; write = Write.empty ()
     ; size  = Size.empty ()
     }
-end
-
-module Full_type_name = struct
-  type t =
-    { path : string list
-    ; name : string
-    }
-
-  let make_path p =
-    Filename.basename p
-    |> split_on_char '.'
-    |> List.filter ~f:((<>) "ml")
-    |> List.map ~f:String.capitalize
-
-  let make path name =
-    { path = make_path path
-    ; name
-    }
-
-  let path t =
-    t.path
-
-  let name t =
-    t.name
-
-  let to_string t =
-    let p = t |> path |> String.concat ~sep:"." in
-    p ^ "." ^ name t
 end

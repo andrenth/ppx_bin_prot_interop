@@ -77,39 +77,39 @@ let value_variable depth =
 
 let depth_delta = 100
 
-let read_of_constr name cts interop depth =
+let read_of_constr ftn cts interop depth =
   let vars = [Var.indexed depth; Var.named "pos"] in
   let conv = List.map cts ~f:(fun ct -> of_type (module Read) ct) in
   let reader_params =
     List.filter cts ~f:is_abstract
     |> List.map ~f:(of_type (module Read)) in
-  let expr = Expr.bind vars (Read.call ~conv name) in
+  let expr = Expr.bind vars (Read.call ~conv ftn) in
   let open Read in
   { readers   = reader_params @ interop.read.readers
   ; rev_exprs = expr :: interop.read.rev_exprs
   }
 
-let write_of_constr name cts interop depth =
+let write_of_constr ftn cts interop depth =
   let conv = List.map cts ~f:(fun ct -> of_type (module Write) ct) in
   let writer_params =
     List.filter cts ~f:is_abstract
     |> List.map ~f:(of_type (module Write)) in
   let expr =
     let v = value_variable depth in
-    Expr.bind [Var.named "pos"] (Write.call ~conv name v) in
+    Expr.bind [Var.named "pos"] (Write.call ~conv ftn v) in
   let open Write in
   { writers   = writer_params @ interop.write.writers
   ; rev_exprs = expr :: interop.write.rev_exprs
   }
 
-let size_of_constr name cts interop depth =
+let size_of_constr ftn cts interop depth =
   let conv = List.map cts ~f:(fun ct -> of_type (module Size) ct) in
   let sizer_params =
     List.filter cts ~f:is_abstract
     |> List.map ~f:(of_type (module Size)) in
   let expr =
     let v = value_variable depth in
-    let sum = Expr.add (Var.named "size") (Size.call ~conv name v) in
+    let sum = Expr.add (Var.named "size") (Size.call ~conv ftn v) in
     Expr.bind [Var.named "size"] sum in
   let open Size in
   { sizers    = sizer_params @ interop.size.sizers
@@ -189,10 +189,10 @@ let rec bin_core_type loc interop depth ct =
   let outer_var = value_variable depth in
   match ct.ptyp_desc with
   | Ptyp_constr (lid, cts) ->
-      let name = string_of_lid lid in
-      let read  = read_of_constr name cts interop depth in
-      let write = write_of_constr name cts interop depth in
-      let size  = size_of_constr name cts interop depth in
+      let ftn = Full_type_name.of_list (list_of_lid lid) in
+      let read  = read_of_constr ftn cts interop depth in
+      let write = write_of_constr ftn cts interop depth in
+      let size  = size_of_constr ftn cts interop depth in
       { read; write; size }
   | Ptyp_tuple cts ->
       let read  = read_of_tuple loc interop depth cts in
