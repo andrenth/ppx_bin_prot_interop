@@ -24,6 +24,16 @@ let string_of_error = function
   | `No_variant_match   -> "NoVariantMatch"
   | `Sum_tag            -> "SumTag"
 
+
+let is_builtin = function
+  | "bool" | "char" | "int" | "float" | "string" | "list"  -> true
+  | _                                                      -> false
+
+let starts_with s str =
+  let len = String.length s in
+  let sub = String.sub str 0 len in
+  s = sub
+
 let rec string_of_expr ?(pad = 0) expr =
   let padding = String.make pad ' ' in
   match expr with
@@ -89,8 +99,15 @@ let rec string_of_expr ?(pad = 0) expr =
       | [] -> try_
       | cs -> try_ ^ "\n" ^ String.concat ~sep:"\n" cs
       end
-  | `Function_pointer f ->
-      sprintf "\"%s\"" f
+  | `Function_pointer ([], f) ->
+      let ns =
+        if starts_with "bin_read_" f       then "bin_prot\\read"
+        else if starts_with "bin_write_" f then "bin_prot\\write"
+        else if starts_with "bin_size_"  f then "bin_prot\\size"
+        else failwith (sprintf "unexpected function reference '%s'" f) in
+      sprintf "\"%s\\%s\"" ns f
+  | `Function_pointer (path, f) ->
+      sprintf "\"%s\\%s\"" (String.concat ~sep:"\\" path) f
 
 and string_of_exprs ?(pad = 0) es =
   es
@@ -142,13 +159,13 @@ and string_of_read_function fn =
       sprintf "%s\\bin_read_list(%s, %s, %s)"
         ns (to_string conv) (to_string buf) (to_string pos)
   | `Bin_read_custom (name, [], buf, pos) ->
-      sprintf "%s\\bin_read_%s(%s, %s)"
-        ns name (to_string buf) (to_string pos)
+      sprintf "bin_read_%s(%s, %s)"
+        name (to_string buf) (to_string pos)
   | `Bin_read_custom (name, convs, buf, pos) ->
       let reader_args =
         String.concat ~sep:", " (List.map convs ~f:to_string) in
-      sprintf "%s\\bin_read_%s(%s, %s, %s)"
-        ns name reader_args (to_string buf) (to_string pos)
+      sprintf "bin_read_%s(%s, %s, %s)"
+        name reader_args (to_string buf) (to_string pos)
 
 and string_of_write_function fn =
   let ns = "bin_prot\\write" in
@@ -182,8 +199,8 @@ and string_of_write_function fn =
       sprintf "%s\\bin_write_list(%s, %s, %s, %s)"
         ns (to_string conv) (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_custom (name, [], buf, pos, value) ->
-      sprintf "%s\\bin_write_%s(%s, %s, %s)"
-        ns name (to_string buf) (to_string pos) (to_string value)
+      sprintf "bin_write_%s(%s, %s, %s)"
+        name (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_custom (name, convs, buf, pos, value) ->
       let writer_args =
         String.concat ~sep:", " (List.map convs ~f:to_string) in
@@ -213,11 +230,11 @@ and string_of_size_function fn =
   | `Bin_size_list (conv, value) ->
       sprintf "%s\\bin_size_list(%s, %s)" ns (to_string conv) (to_string value)
   | `Bin_size_custom (name, [], value) ->
-      sprintf "%s\\bin_size_%s(%s)" ns name (to_string value)
+      sprintf "bin_size_%s(%s)" name (to_string value)
   | `Bin_size_custom (name, convs, value) ->
       let sizer_args =
         String.concat ~sep:", " (List.map convs ~f:to_string) in
-      sprintf "%s\\bin_size_%s(%s, %s)" ns name sizer_args (to_string value)
+      sprintf "bin_size_%s(%s, %s)" name sizer_args (to_string value)
 
 and string_of_get_function = function
   | `At  (e, i) -> sprintf "%s[%d]"     (string_of_expr e) i

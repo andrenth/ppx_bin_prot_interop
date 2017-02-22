@@ -25,8 +25,18 @@ let is_abstract ct =
   | Ptyp_var _ -> true
   | _          -> false
 
-let string_of_lid loc =
-  String.concat "." (Longident.flatten loc.Location.txt)
+let init_and_last l =
+  let rec loop acc = function
+    | [] -> failwith "init_and_last: empty list"
+    | [x] -> (List.rev acc, x)
+    | x::xs -> loop (x::acc) xs in
+  loop [] l
+
+let list_of_lid lid =
+  Longident.flatten lid.Location.txt
+
+let string_of_lid lid =
+  String.concat "." (list_of_lid lid)
 
 module type OF_TYPE = sig
   val function_name : string -> string
@@ -35,7 +45,9 @@ end
 let of_type (module F : OF_TYPE) ct =
   match ct.ptyp_desc with
   | Ptyp_var v -> Var.named ("_of__" ^ v)
-  | Ptyp_constr (lid, []) -> Expr.funp (F.function_name (string_of_lid lid))
+  | Ptyp_constr (lid, []) ->
+      let path, type_name = init_and_last (list_of_lid lid) in
+      Expr.funp ~path (F.function_name type_name)
   | _ -> failwith "of_type: unimplemented"
 
 let bound_vars n bindings =

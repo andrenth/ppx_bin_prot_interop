@@ -49,7 +49,7 @@ module Interop = struct
       | `Sum of string * t option
       | `Switch of t * case list
       | `Try of t list * (Error.t * t list) list
-      | `Function_pointer of string
+      | `Function_pointer of string list * string
       ]
 
     and read =
@@ -109,8 +109,8 @@ module Interop = struct
     let bind vars expr =
       `Binding (vars, expr)
 
-    let funp f =
-      `Function_pointer f
+    let funp ?(path = []) f =
+      `Function_pointer (path, f)
 
     let bin_read_int_8bit buf pos =
       `App (`Read (`Bin_read_int_8bit (buf, pos)))
