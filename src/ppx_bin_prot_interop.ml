@@ -115,29 +115,24 @@ let read_of_record names interop depth =
   let expr = Expr.bind [Var.indexed depth] record in
   { read with rev_exprs = expr :: read.rev_exprs }
 
+let record_rev_bindings names depth var =
+  List.fold_left names ~init:([], depth + depth_delta) ~f:
+    (fun (bs, d) name ->
+      let b = Expr.bind [Var.indexed d] (Expr.get_key name var) in
+      (b :: bs, d + 1))
+  |> fst
+
 let write_of_record names interop depth var =
   let open Write in
-  let bindings =
-    let v = Var.named "value" in
-    let value_binding = Expr.bind [v] (Expr.get_value var) in
-    List.fold_left names ~init:([value_binding], depth + depth_delta) ~f:
-      (fun (bs, d) name ->
-        let b = Expr.bind [Var.indexed d] (Expr.get_key name v) in
-        (b :: bs, d + 1))
-    |> fst in
+  let rev_bindings = record_rev_bindings names depth var in
   let write = interop.write in
-  { write with rev_exprs = write.rev_exprs @ bindings }
+  { write with rev_exprs = write.rev_exprs @ rev_bindings }
 
 let size_of_record names interop depth var =
   let open Size in
-  let bindings =
-    List.fold_left names ~init:([], depth + depth_delta) ~f:
-      (fun (bs, d) name ->
-        let b = Expr.bind [Var.indexed d] (Expr.get_key name var) in
-        (b :: bs, d + 1))
-    |> fst in
+  let rev_bindings = record_rev_bindings names depth var in
   let size = interop.size in
-  { size with rev_exprs = size.rev_exprs @ bindings }
+  { size with rev_exprs = size.rev_exprs @ rev_bindings }
 
 let read_of_sum interop depth n cases =
   let read_sum_int =
@@ -152,26 +147,31 @@ let read_of_sum interop depth n cases =
   }
 
 let write_of_sum interop depth var cases =
-  let binding = Expr.bind [var] (Var.named "v") in
   let cases = `Default [`Raise (`Sum_tag, None)] :: cases |> List.rev in
   let expr = `Switch (Expr.get_tag (var :> Expr.t), cases) in
   Write.{ interop.write with
-    rev_exprs = expr :: interop.write.rev_exprs @ [binding]
+    rev_exprs = expr :: interop.write.rev_exprs
   }
 
 let size_of_sum interop depth var cases =
-  let binding = Expr.bind [var] (Var.named "v") in
   let cases = `Default [`Raise (`Sum_tag, None)] :: cases |> List.rev in
   let expr = `Switch (Expr.get_tag (var :> Expr.t), cases) in
   Size.{ interop.size with
-    rev_exprs = expr :: interop.size.rev_exprs @ [binding]
+    rev_exprs = expr :: interop.size.rev_exprs
   }
+
+let tuple_rev_bindings cts depth var =
+  List.mapi cts ~f:
+    (fun d ct ->
+      Expr.bind [Var.indexed (depth + d + depth_delta)] (Expr.get_at d var))
+  |> List.rev
 
 let ends_in_binding = function
   | `Binding _ :: _ -> true
   | _ -> false
 
 let rec bin_core_type loc interop depth ct =
+  let outer_var = value_variable depth in
   match ct.ptyp_desc with
   | Ptyp_constr (lid, cts) ->
       let name = string_of_lid lid in
@@ -181,8 +181,8 @@ let rec bin_core_type loc interop depth ct =
       { read; write; size }
   | Ptyp_tuple cts ->
       let read  = read_of_tuple loc interop depth cts in
-      let write = write_of_tuple loc interop depth cts in
-      let size  = size_of_tuple loc interop depth cts in
+      let write = write_of_tuple loc interop depth outer_var cts in
+      let size  = size_of_tuple loc interop depth outer_var cts in
       { read; write; size }
   | Ptyp_variant (row_fields, closed_flag, labels) ->
       let res, wes, ses = bin_variant loc interop depth row_fields in
@@ -252,21 +252,15 @@ and bin_variant loc interop depth row_fields =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = (default :: write_tagged) |> List.rev in
     let v = value_variable depth in
-    let exprs =
-      [ Expr.bind [Var.indexed outer_depth] (Var.named "v")
-      ; `Switch (Expr.get_tag v, cases)
-      ] in
-    check_inherited exprs write_inherited in
+    let expr = `Switch (Expr.get_tag v, cases) in
+    check_inherited [expr] write_inherited in
 
   let size_exprs =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = (default :: size_tagged) |> List.rev in
     let v = value_variable depth in
-    let exprs =
-      [ Expr.bind [Var.indexed outer_depth] (Var.named "v")
-      ; `Switch (Expr.get_tag v, cases)
-      ] in
-    check_inherited exprs size_inherited in
+    let expr = `Switch (Expr.get_tag v, cases) in
+    check_inherited [expr] size_inherited in
 
   (read_exprs, write_exprs, size_exprs)
 
@@ -306,8 +300,7 @@ and bin_tagged_variant loc depth var label cts =
     `Case (Lit.string label, exprs, true) in
   (read_case, write_case, size_case, depth + 1)
 
-and bin_record loc interop depth lds =
-  let outer_var = Var.indexed depth in
+and bin_record loc interop depth outer_var lds =
   let names, cts =
     List.map lds ~f:(fun ld -> (ld.pld_name.Location.txt, ld.pld_type))
     |> List.split in
@@ -330,7 +323,7 @@ and bin_record loc interop depth lds =
   { read; write; size }
 
 and bin_sum loc interop depth cds =
-  let outer_var = Var.indexed depth in
+  let outer_var = value_variable depth in
   let n = List.length cds in
   let read_cases, write_cases, size_cases, _ =
     List.fold_left cds ~init:([], [], [], 0) ~f:
@@ -341,7 +334,7 @@ and bin_sum loc interop depth cds =
         let itr, arg =
           match cd.pcd_args with
           | Pcstr_tuple cts -> sum_tuple loc interop depth outer_var cts name
-          | Pcstr_record lds -> sum_record loc interop depth lds in
+          | Pcstr_record lds -> sum_record loc interop depth outer_var lds in
         let rc = sum_read_case name arg itr d in
         let wc = sum_write_case loc name itr d n in
         let sc = sum_size_case loc name itr d n in
@@ -407,34 +400,25 @@ and read_of_tuple loc interop depth cts =
     rev_exprs = expr :: itr.read.rev_exprs @ interop.read.rev_exprs
   }
 
-and write_of_tuple loc interop depth cts =
+and write_of_tuple loc interop depth var cts =
   let open Write in
-  let bindings =
-    List.mapi cts ~f:
-      (fun d ct ->
-        let v = Var.named "value" in
-        Expr.bind [Var.indexed (depth + d + depth_delta)] (Expr.get_at d v))
-    |> List.rev in
+  let rev_bindings = tuple_rev_bindings cts depth var in
   let itr = bin_core_types loc depth cts in
   { interop.write with
-    rev_exprs = itr.write.rev_exprs @ interop.write.rev_exprs @ bindings
+    rev_exprs = itr.write.rev_exprs @ interop.write.rev_exprs @ rev_bindings
   }
 
-and size_of_tuple loc interop depth cts =
+and size_of_tuple loc interop depth var cts =
   let open Size in
-  let bindings =
-    List.mapi cts ~f:
-      (fun d ct ->
-        let v = Var.named "value" in
-        Expr.bind [Var.indexed (depth + d + depth_delta)] (Expr.get_at d v))
-    |> List.rev in
+  let rev_bindings = tuple_rev_bindings cts depth var in
   let itr = bin_core_types loc depth cts in
   { interop.size with
-    rev_exprs = itr.size.rev_exprs @ interop.size.rev_exprs @ bindings
+    rev_exprs = itr.size.rev_exprs @ interop.size.rev_exprs @ rev_bindings
   }
 
 and sum_tuple loc interop depth var cts name =
-  let binding = Expr.bind [Var.named "value"] (Expr.get_value var) in
+  let value = Var.named "value" in
+  let binding = Expr.bind [value] (Expr.get_value var) in
   let itr =
     match cts with
     | []   -> interop
@@ -449,8 +433,8 @@ and sum_tuple loc interop depth var cts name =
         { itr with write; size }
     | _    ->
         let read  = read_of_tuple loc interop depth cts in
-        let write = write_of_tuple loc interop depth cts in
-        let size  = size_of_tuple loc interop depth cts in
+        let write = write_of_tuple loc interop depth value cts in
+        let size  = size_of_tuple loc interop depth value cts in
         let write =
           Write.{ write with rev_exprs = write.rev_exprs @ [binding] } in
         let size  =
@@ -462,13 +446,21 @@ and sum_tuple loc interop depth var cts name =
     | None -> None in
   (itr, arg)
 
-and sum_record loc interop depth lds =
-  let itr = bin_record loc interop depth lds in
+and sum_record loc interop depth var lds =
+  let value = Var.named "value" in
+  let binding = Expr.bind [value] (Expr.get_value var) in
+  let itr = bin_record loc interop depth value lds in
+  let write = itr.write in
+  let write =
+    Write.{ write with rev_exprs = write.rev_exprs @ [binding] } in
+  let size = itr.size in
+  let size =
+    Size.{ size with rev_exprs = size.rev_exprs @ [binding] } in
   let arg =
     match first_bound_variable itr.read.Read.rev_exprs with
     | Some v -> Some (v :> Expr.t)
     | None -> error loc "read sum record bug" in
-  (itr, arg)
+  ({ itr with write; size }, arg)
 
 and read_of_variant interop exprs =
   let open Read in
@@ -526,7 +518,7 @@ let bin_interop ~loc ~path (rec_flag, type_decls) php =
           let itr = Interop.empty () in
           match td.ptype_kind with
           | Ptype_variant cds -> bin_sum loc itr 0 cds
-          | Ptype_record lds -> bin_record loc itr 0 lds
+          | Ptype_record lds -> bin_record loc itr 0 (Var.named "v") lds
           | Ptype_open -> error loc "open types not yet supported"
           | Ptype_abstract ->
               match td.ptype_manifest with
