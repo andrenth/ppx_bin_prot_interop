@@ -156,16 +156,16 @@ module Interop = struct
 
   module Read = struct
     type t =
-      { readers : Expr.t list
-      ; exprs   : Expr.t list
+      { readers   : Expr.t list
+      ; rev_exprs : Expr.t list
       }
 
     let function_name name =
       "bin_read_" ^ name
 
     let empty () =
-      { readers = []
-      ; exprs   = []
+      { readers   = []
+      ; rev_exprs = []
       }
 
     let call ?(conv = []) type_name =
@@ -184,16 +184,16 @@ module Interop = struct
 
   module Write = struct
     type t =
-      { writers : Expr.t list
-      ; exprs   : Expr.t list
+      { writers   : Expr.t list
+      ; rev_exprs : Expr.t list
       }
 
     let function_name type_name =
       "bin_write_" ^ type_name
 
     let empty () =
-      { writers = []
-      ; exprs   = []
+      { writers   = []
+      ; rev_exprs = []
       }
 
     let call ?(conv = []) type_name value =
@@ -212,16 +212,16 @@ module Interop = struct
 
   module Size = struct
     type t =
-      { sizers : Expr.t list
-      ; exprs  : Expr.t list
+      { sizers    : Expr.t list
+      ; rev_exprs : Expr.t list
       }
 
     let function_name type_name =
       "bin_size_" ^ type_name
 
     let empty () =
-      { sizers = []
-      ; exprs  = []
+      { sizers    = []
+      ; rev_exprs = []
       }
 
     let call ?(conv = []) type_name value =

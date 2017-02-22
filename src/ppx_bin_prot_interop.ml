@@ -73,8 +73,8 @@ let read_of_constr name cts interop depth =
     |> List.map ~f:(of_type (module Read)) in
   let expr = Expr.bind vars (Read.call ~conv name) in
   let open Read in
-  { readers = reader_params @ interop.read.readers
-  ; exprs   = expr :: interop.read.exprs
+  { readers   = reader_params @ interop.read.readers
+  ; rev_exprs = expr :: interop.read.rev_exprs
   }
 
 let write_of_constr name cts interop depth =
@@ -86,8 +86,8 @@ let write_of_constr name cts interop depth =
     let v = value_variable depth in
     Expr.bind [Var.named "pos"] (Write.call ~conv name v) in
   let open Write in
-  { writers = writer_params @ interop.write.writers
-  ; exprs   = expr :: interop.write.exprs
+  { writers   = writer_params @ interop.write.writers
+  ; rev_exprs = expr :: interop.write.rev_exprs
   }
 
 let size_of_constr name cts interop depth =
@@ -100,20 +100,20 @@ let size_of_constr name cts interop depth =
     let sum = Expr.add (Var.named "size") (Size.call ~conv name v) in
     Expr.bind [Var.named "size"] sum in
   let open Size in
-  { sizers = sizer_params @ interop.size.sizers
-  ; exprs  = expr :: interop.size.exprs
+  { sizers    = sizer_params @ interop.size.sizers
+  ; rev_exprs = expr :: interop.size.rev_exprs
   }
 
 let read_of_record names interop depth =
   let open Read in
   let read = interop.read in
-  let vars = bound_vars depth read.exprs |> List.rev in
+  let vars = bound_vars depth read.rev_exprs |> List.rev in
   let r =
     List.fold_left2 names vars ~init:[] ~f:(fun acc n ct -> (n, ct)::acc)
     |> List.rev in
   let record = `Record r in
   let expr = Expr.bind [Var.indexed depth] record in
-  { read with exprs = expr :: read.exprs }
+  { read with rev_exprs = expr :: read.rev_exprs }
 
 let write_of_record names interop depth var =
   let open Write in
@@ -126,7 +126,7 @@ let write_of_record names interop depth var =
         (b :: bs, d + 1))
     |> fst in
   let write = interop.write in
-  { write with exprs = write.exprs @ bindings }
+  { write with rev_exprs = write.rev_exprs @ bindings }
 
 let size_of_record names interop depth var =
   let open Size in
@@ -137,7 +137,7 @@ let size_of_record names interop depth var =
         (b :: bs, d + 1))
     |> fst in
   let size = interop.size in
-  { size with exprs = size.exprs @ bindings }
+  { size with rev_exprs = size.rev_exprs @ bindings }
 
 let read_of_sum interop depth n cases =
   let read_sum_int =
@@ -148,7 +148,7 @@ let read_of_sum interop depth n cases =
   let cases = `Default [`Raise (`Sum_tag, None)] :: cases |> List.rev in
   let expr = `Switch (read_sum_int, cases) in
   Read.{ interop.read with
-    exprs = expr :: interop.read.exprs
+    rev_exprs = expr :: interop.read.rev_exprs
   }
 
 let write_of_sum interop depth var cases =
@@ -156,7 +156,7 @@ let write_of_sum interop depth var cases =
   let cases = `Default [`Raise (`Sum_tag, None)] :: cases |> List.rev in
   let expr = `Switch (Expr.get_tag (var :> Expr.t), cases) in
   Write.{ interop.write with
-    exprs = expr :: interop.write.exprs @ [binding]
+    rev_exprs = expr :: interop.write.rev_exprs @ [binding]
   }
 
 let size_of_sum interop depth var cases =
@@ -164,7 +164,7 @@ let size_of_sum interop depth var cases =
   let cases = `Default [`Raise (`Sum_tag, None)] :: cases |> List.rev in
   let expr = `Switch (Expr.get_tag (var :> Expr.t), cases) in
   Size.{ interop.size with
-    exprs = expr :: interop.size.exprs @ [binding]
+    rev_exprs = expr :: interop.size.rev_exprs @ [binding]
   }
 
 let ends_in_binding = function
@@ -215,9 +215,9 @@ and bin_variant loc interop depth row_fields =
             ((ris, rt :: rts), (wis, wt :: wts), (sis, st :: sts), depth)
         | Rinherit ct ->
             let itr = bin_core_type loc (Interop.empty ()) depth ct in
-            let ris = ris @ itr.read.Read.exprs in
-            let wis = wis @ itr.write.Write.exprs in
-            let sis = sis @ itr.size.Size.exprs in
+            let ris = ris @ itr.read.Read.rev_exprs in
+            let wis = wis @ itr.write.Write.rev_exprs in
+            let sis = sis @ itr.size.Size.rev_exprs in
             ((ris, rts), (wis, wts), (sis, sts), depth + 1)) in
 
   let read_inherited,  read_tagged  = read in
@@ -275,10 +275,10 @@ and bin_tagged_variant loc depth var label cts =
   let itr = bin_core_types loc depth cts in
   let read_case =
     let open Read in
-    let vars = bound_vars depth itr.read.exprs |> List.rev in
+    let vars = bound_vars depth itr.read.rev_exprs |> List.rev in
     let arg = expr_of_list vars in
     let binding = Expr.bind [var] (`Variant (label, arg)) in
-    let exprs = binding :: itr.read.exprs |> List.rev in
+    let exprs = binding :: itr.read.rev_exprs |> List.rev in
     `Case (Lit.int hash, exprs, true) in
   let write_case =
     let open Write in
@@ -292,7 +292,7 @@ and bin_tagged_variant loc depth var label cts =
       [ Expr.bind [Var.indexed (depth + depth_delta)] value
       ; Expr.bind [Var.named "pos"] call
       ] in
-    let exprs = bindings @ List.rev itr.write.exprs in
+    let exprs = bindings @ List.rev itr.write.rev_exprs in
     `Case (Lit.string label, exprs, true) in
   let size_case =
     let open Size in
@@ -302,7 +302,7 @@ and bin_tagged_variant loc depth var label cts =
       [ Expr.bind [Var.named "size"] sum_vint_size
       ; Expr.bind [Var.indexed (depth + depth_delta)] value
       ] in
-    let exprs = (itr.size.exprs @ bindings) |> List.rev in
+    let exprs = (itr.size.rev_exprs @ bindings) |> List.rev in
     `Case (Lit.string label, exprs, true) in
   (read_case, write_case, size_case, depth + 1)
 
@@ -315,17 +315,17 @@ and bin_record loc interop depth lds =
   let read = read_of_record names itr depth in
   let read =
     Read.{ interop.read with
-      exprs = read.exprs @ interop.read.exprs
+      rev_exprs = read.rev_exprs @ interop.read.rev_exprs
     } in
   let write = write_of_record names itr depth outer_var in
   let write =
     Write.{ interop.write with
-      exprs = write.exprs @ interop.write.exprs
+      rev_exprs = write.rev_exprs @ interop.write.rev_exprs
     } in
   let size = size_of_record names itr depth outer_var in
   let size =
     Size.{ interop.size with
-      exprs = size.exprs @ interop.size.exprs
+      rev_exprs = size.rev_exprs @ interop.size.rev_exprs
     } in
   { read; write; size }
 
@@ -355,7 +355,7 @@ and sum_read_case name arg itr d =
   let exprs =
     let ret = `Ret [`Sum (name, arg)] in
     let es =
-      match itr.read.Read.exprs with
+      match itr.read.Read.rev_exprs with
       | [] -> [ret]
       | es when ends_in_binding es -> ret :: es
       | es -> es in
@@ -373,7 +373,7 @@ and sum_write_case loc name itr d n =
   let exprs =
     let ret = `Ret [Var.named "pos"] in
     let es =
-      match itr.write.Write.exprs with
+      match itr.write.Write.rev_exprs with
       | [] -> [ret]
       | es when ends_in_binding es -> ret :: es
       | es -> es in
@@ -391,7 +391,7 @@ and sum_size_case loc name itr d n =
   let exprs =
     let ret = `Ret [Var.named "size"] in
     let es =
-      match itr.size.Size.exprs with
+      match itr.size.Size.rev_exprs with
       | [] -> [ret]
       | es when ends_in_binding es -> ret :: es
       | es -> es in
@@ -401,10 +401,10 @@ and sum_size_case loc name itr d n =
 and read_of_tuple loc interop depth cts =
   let open Read in
   let itr = bin_core_types loc depth cts in
-  let tuple = `Tuple (bound_vars depth itr.read.exprs |> List.rev) in
+  let tuple = `Tuple (bound_vars depth itr.read.rev_exprs |> List.rev) in
   let expr = Expr.bind [Var.indexed depth] tuple in
   { interop.read with
-    exprs = expr :: itr.read.exprs @ interop.read.exprs
+    rev_exprs = expr :: itr.read.rev_exprs @ interop.read.rev_exprs
   }
 
 and write_of_tuple loc interop depth cts =
@@ -417,7 +417,7 @@ and write_of_tuple loc interop depth cts =
     |> List.rev in
   let itr = bin_core_types loc depth cts in
   { interop.write with
-    exprs = itr.write.exprs @ interop.write.exprs @ bindings
+    rev_exprs = itr.write.rev_exprs @ interop.write.rev_exprs @ bindings
   }
 
 and size_of_tuple loc interop depth cts =
@@ -430,7 +430,7 @@ and size_of_tuple loc interop depth cts =
     |> List.rev in
   let itr = bin_core_types loc depth cts in
   { interop.size with
-    exprs = itr.size.exprs @ interop.size.exprs @ bindings
+    rev_exprs = itr.size.rev_exprs @ interop.size.rev_exprs @ bindings
   }
 
 and sum_tuple loc interop depth var cts name =
@@ -441,19 +441,23 @@ and sum_tuple loc interop depth var cts name =
     | [ct] ->
         let itr = bin_core_type loc interop depth ct in
         let write = itr.write in
-        let write = Write.{ write with exprs = write.exprs @ [binding] } in
+        let write =
+          Write.{ write with rev_exprs = write.rev_exprs @ [binding] } in
         let size = itr.size in
-        let size = Size.{ size with exprs = size.exprs @ [binding] } in
+        let size =
+          Size.{ size with rev_exprs = size.rev_exprs @ [binding] } in
         { itr with write; size }
     | _    ->
         let read  = read_of_tuple loc interop depth cts in
         let write = write_of_tuple loc interop depth cts in
         let size  = size_of_tuple loc interop depth cts in
-        let write = Write.{ write with exprs = write.exprs @ [binding] } in
-        let size  = Size.{ size with exprs = size.exprs @ [binding] } in
+        let write =
+          Write.{ write with rev_exprs = write.rev_exprs @ [binding] } in
+        let size  =
+          Size.{ size with rev_exprs = size.rev_exprs @ [binding] } in
         { read; write; size } in
   let arg =
-    match first_bound_variable itr.read.Read.exprs with
+    match first_bound_variable itr.read.Read.rev_exprs with
     | Some v -> Some (v :> Expr.t)
     | None -> None in
   (itr, arg)
@@ -461,33 +465,33 @@ and sum_tuple loc interop depth var cts name =
 and sum_record loc interop depth lds =
   let itr = bin_record loc interop depth lds in
   let arg =
-    match first_bound_variable itr.read.Read.exprs with
+    match first_bound_variable itr.read.Read.rev_exprs with
     | Some v -> Some (v :> Expr.t)
     | None -> error loc "read sum record bug" in
   (itr, arg)
 
 and read_of_variant interop exprs =
   let open Read in
-  { interop.read with exprs = exprs @ interop.read.exprs }
+  { interop.read with rev_exprs = exprs @ interop.read.rev_exprs }
 
 and write_of_variant interop exprs =
   let open Write in
-  { interop.write with exprs = exprs @ interop.write.exprs }
+  { interop.write with rev_exprs = exprs @ interop.write.rev_exprs }
 
 and size_of_variant interop exprs =
   let open Size in
-  { interop.size with exprs = exprs @ interop.size.exprs }
+  { interop.size with rev_exprs = exprs @ interop.size.rev_exprs }
 
 let make_read_function type_name read =
   let open Read in
   let params =
     Var.named "pos" :: Var.named "buf" :: read.readers |> List.rev in
   let function_body =
-    let exprs = read.exprs in
+    let rev_exprs = read.rev_exprs in
     let ret =
-      match first_bound_variable exprs with
-      | Some var -> (`Ret [(var :> Expr.t); Var.named "pos"] :: exprs)
-      | None -> exprs in
+      match first_bound_variable rev_exprs with
+      | Some var -> (`Ret [(var :> Expr.t); Var.named "pos"] :: rev_exprs)
+      | None -> rev_exprs in
     ret |> List.rev in
   Fun_decl.make (Read.function_name type_name) params function_body
 
@@ -497,17 +501,17 @@ let make_write_function type_name write =
     Var.named "v" :: Var.named "pos" :: Var.named "buf" :: write.writers
     |> List.rev in
   let function_body =
-    `Ret [Var.named "pos"] :: write.exprs |> List.rev in
+    `Ret [Var.named "pos"] :: write.rev_exprs |> List.rev in
   Fun_decl.make (Write.function_name type_name) params function_body
 
 let make_size_function type_name size =
   let open Size in
   let params = Var.named "v" :: size.sizers |> List.rev in
   let function_body =
-    let exprs = size.exprs in
+    let rev_exprs = size.rev_exprs in
     let init = Expr.bind [Var.named "size"] (Lit.int 0) in
     let ret = `Ret [Var.named "size"] in
-    init :: (ret :: exprs |> List.rev) in
+    init :: (ret :: rev_exprs |> List.rev) in
   Fun_decl.make (Size.function_name type_name) params function_body
 
 module PHP = Ppx_bin_prot_interop_php
