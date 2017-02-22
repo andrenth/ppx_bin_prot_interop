@@ -258,10 +258,6 @@ let string_of_interop ?(pad = 0) f =
 
 let header =
   "<?php\n\n"
-  ^ "use bin_prot\\read;\n"
-  ^ "use bin_prot\\write;\n"
-  ^ "use bin_prot\\size;\n"
-  ^ "\n"
 
 let type_header ?(pad = 0) ftn =
   let ns = ftn |> Full_type_name.path |> String.concat ~sep:"\\" in
