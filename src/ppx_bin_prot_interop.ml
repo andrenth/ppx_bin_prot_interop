@@ -153,9 +153,12 @@ let read_of_sum interop depth n cases =
     else
       Expr.bin_read_int_16bit (Var.named "buf") (Var.named "pos") in
   let cases = `Default [`Raise (`Sum_tag, None)] :: cases |> List.rev in
-  let expr = `Switch (read_sum_int, cases) in
+  let exprs =
+    [ Expr.bind [Var.named "tag"; Var.named "pos"] read_sum_int
+    ; `Switch (Var.named "tag", cases)
+    ] in
   Read.{ interop.read with
-    rev_exprs = expr :: interop.read.rev_exprs
+    rev_exprs = (exprs |> List.rev) @ interop.read.rev_exprs
   }
 
 let write_of_sum interop depth var cases =
@@ -250,13 +253,14 @@ and bin_variant loc interop depth row_fields =
             | _  -> [`Try (e_with_ret, [`No_variant_match, acc])]) in
 
   let read_exprs =
-    let call =
+    let read_tag =
       Expr.bin_read_variant_int (Var.named "buf") (Var.named "pos") in
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = default :: read_tagged |> List.rev in
     let exprs =
       [ Expr.bind [Var.indexed outer_depth] (Lit.string "__dummy__")
-      ; `Switch (call, cases)
+      ; Expr.bind [Var.named "vint"; Var.named "pos"] read_tag
+      ; `Switch (Var.named "vint", cases)
       ] in
     check_inherited exprs read_inherited in
 
