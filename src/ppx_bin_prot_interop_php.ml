@@ -31,8 +31,10 @@ let is_builtin = function
 
 let starts_with s str =
   let len = String.length s in
-  let sub = String.sub str 0 len in
-  s = sub
+  if len > String.length str then false
+  else s = String.sub str 0 len
+
+let is_function_pointer = starts_with "_of__"
 
 let path_to_namespace =
   String.concat ~sep:"\\"
@@ -167,11 +169,15 @@ and string_of_read_function fn =
       sprintf "%s\\bin_read_list(%s, %s, %s)"
         ns (to_string conv) (to_string buf) (to_string pos)
   | `Bin_read_custom (ftn, [], buf, pos) ->
-      let base = sprintf "bin_read_%s" (Full_type_name.name ftn) in
+      let name = ftn |> Full_type_name.name in
+      let prefix = if is_function_pointer name then "$" else "bin_read_" in
+      let base = sprintf "%s%s" prefix name in
       let full = namespaced (Full_type_name.path ftn) base in
       sprintf "%s(%s, %s)" full (to_string buf) (to_string pos)
   | `Bin_read_custom (ftn, convs, buf, pos) ->
-      let base = sprintf "bin_read_%s" (Full_type_name.name ftn) in
+      let name = ftn |> Full_type_name.name in
+      let prefix = if is_function_pointer name then "$" else "bin_read_" in
+      let base = sprintf "%s%s" prefix name in
       let full = namespaced (Full_type_name.path ftn) base in
       let reader_args =
         String.concat ~sep:", " (List.map convs ~f:to_string) in
@@ -209,12 +215,16 @@ and string_of_write_function fn =
       sprintf "%s\\bin_write_list(%s, %s, %s, %s)"
         ns (to_string conv) (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_custom (ftn, [], buf, pos, value) ->
-      let base = sprintf "bin_write_%s" (Full_type_name.name ftn) in
+      let name = ftn |> Full_type_name.name in
+      let prefix = if is_function_pointer name then "$" else "bin_write_" in
+      let base = sprintf "%s%s" prefix name in
       let full = namespaced (Full_type_name.path ftn) base in
       sprintf "%s(%s, %s, %s)"
         full (to_string buf) (to_string pos) (to_string value)
   | `Bin_write_custom (ftn, convs, buf, pos, value) ->
-      let base = sprintf "bin_write_%s" (Full_type_name.name ftn) in
+      let name = ftn |> Full_type_name.name in
+      let prefix = if is_function_pointer name then "$" else "bin_write_" in
+      let base = sprintf "%s%s" prefix name in
       let full = namespaced (Full_type_name.path ftn) base in
       let writer_args =
         String.concat ~sep:", " (List.map convs ~f:to_string) in
@@ -244,11 +254,15 @@ and string_of_size_function fn =
   | `Bin_size_list (conv, value) ->
       sprintf "%s\\bin_size_list(%s, %s)" ns (to_string conv) (to_string value)
   | `Bin_size_custom (ftn, [], value) ->
-      let base = sprintf "bin_size_%s" (Full_type_name.name ftn) in
+      let name = ftn |> Full_type_name.name in
+      let prefix = if is_function_pointer name then "$" else "bin_size_" in
+      let base = sprintf "%s%s" prefix name in
       let full = namespaced (Full_type_name.path ftn) base in
       sprintf "%s(%s)" full (to_string value)
   | `Bin_size_custom (ftn, convs, value) ->
-      let base = sprintf "bin_size_%s" (Full_type_name.name ftn) in
+      let name = ftn |> Full_type_name.name in
+      let prefix = if is_function_pointer name then "$" else "bin_size_" in
+      let base = sprintf "%s%s" prefix name in
       let full = namespaced (Full_type_name.path ftn) base in
       let sizer_args =
         String.concat ~sep:", " (List.map convs ~f:to_string) in

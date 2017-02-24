@@ -17,6 +17,7 @@ let tests =
   ; "variant"
   ; "record"
   ; "sum"
+  ; "parametrized"
   ]
 
 let readlines name =

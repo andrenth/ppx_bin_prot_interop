@@ -42,9 +42,12 @@ module type OF_TYPE = sig
   val function_name : string -> string
 end
 
+let conv_variable_name v =
+  "_of__" ^ v
+
 let of_type (module F : OF_TYPE) ct =
   match ct.ptyp_desc with
-  | Ptyp_var v -> Var.named ("_of__" ^ v)
+  | Ptyp_var v -> Var.named (conv_variable_name v)
   | Ptyp_constr (lid, []) ->
       let path, type_name = init_and_last (list_of_lid lid) in
       Expr.funp ~path (F.function_name type_name)
@@ -113,6 +116,39 @@ let size_of_constr ftn cts interop depth =
     Expr.bind [Var.named "size"] sum in
   let open Size in
   { sizers    = sizer_params @ interop.size.sizers
+  ; rev_exprs = expr :: interop.size.rev_exprs
+  }
+
+let read_of_type_param p interop depth =
+  let vars = [Var.indexed depth; Var.named "pos"] in
+  let var_name = conv_variable_name p in
+  let ftn = Full_type_name.make var_name 0 in
+  let call = Expr.bin_read_custom ftn (Var.named "buf") (Var.named "pos") in
+  let expr = Expr.bind vars call in
+  let open Read in
+  { readers   = (Var.named var_name) :: interop.read.readers
+  ; rev_exprs = expr :: interop.read.rev_exprs
+  }
+
+let write_of_type_param p interop depth =
+  let var_name = conv_variable_name p in
+  let ftn = Full_type_name.make var_name 0 in
+  let v = value_variable depth in
+  let call = Expr.bin_write_custom ftn (Var.named "buf") (Var.named "pos") v in
+  let expr = Expr.bind [Var.named "pos"] call in
+  let open Write in
+  { writers   = (Var.named var_name) :: interop.write.writers
+  ; rev_exprs = expr :: interop.write.rev_exprs
+  }
+
+let size_of_type_param p interop depth =
+  let var_name = conv_variable_name p in
+  let ftn = Full_type_name.make var_name 0 in
+  let v = value_variable depth in
+  let call = Expr.bin_size_custom ftn v in
+  let expr = Expr.bind [Var.named "pos"] call in
+  let open Size in
+  { sizers    = (Var.named var_name) :: interop.size.sizers
   ; rev_exprs = expr :: interop.size.rev_exprs
   }
 
@@ -189,7 +225,7 @@ let rec bin_core_type loc interop depth ct =
   let outer_var = value_variable depth in
   match ct.ptyp_desc with
   | Ptyp_constr (lid, cts) ->
-      let ftn = Full_type_name.of_list (list_of_lid lid) in
+      let ftn = Full_type_name.of_list (list_of_lid lid) (List.length cts) in
       let read  = read_of_constr ftn cts interop depth in
       let write = write_of_constr ftn cts interop depth in
       let size  = size_of_constr ftn cts interop depth in
@@ -205,12 +241,16 @@ let rec bin_core_type loc interop depth ct =
       let write = write_of_variant interop wes in
       let size = size_of_variant interop ses in
       { read; write; size }
+  | Ptyp_var p ->
+      let read  = read_of_type_param p interop depth in
+      let write = write_of_type_param p interop depth in
+      let size  = size_of_type_param p interop depth in
+      { read; write; size }
   | _ ->
-      error loc "unimplemented"
+      error loc "bin_core_type: unimplemented"
 
-and bin_core_types loc depth cts =
-  let itr = Interop.empty () in
-  List.fold_left cts ~init:(itr, depth + depth_delta) ~f:
+and bin_core_types loc interop depth cts =
+  List.fold_left cts ~init:(interop, depth + depth_delta) ~f:
     (fun (itr, d) ct ->
       let itr = bin_core_type loc itr d ct in
       (itr, d + 1))
@@ -282,7 +322,7 @@ and bin_variant loc interop depth row_fields =
 
 and bin_tagged_variant loc depth var label cts =
   let hash = Btype.hash_variant label in
-  let itr = bin_core_types loc depth cts in
+  let itr = bin_core_types loc (Interop.empty ()) depth cts in
   let read_case =
     let open Read in
     let vars = bound_vars depth itr.read.rev_exprs |> List.rev in
@@ -320,22 +360,10 @@ and bin_record loc interop depth outer_var lds =
   let names, cts =
     List.map lds ~f:(fun ld -> (ld.pld_name.Location.txt, ld.pld_type))
     |> List.split in
-  let itr = bin_core_types loc depth cts in
+  let itr = bin_core_types loc interop depth cts in
   let read = read_of_record names itr depth in
-  let read =
-    Read.{ interop.read with
-      rev_exprs = read.rev_exprs @ interop.read.rev_exprs
-    } in
   let write = write_of_record names itr depth outer_var in
-  let write =
-    Write.{ interop.write with
-      rev_exprs = write.rev_exprs @ interop.write.rev_exprs
-    } in
   let size = size_of_record names itr depth outer_var in
-  let size =
-    Size.{ interop.size with
-      rev_exprs = size.rev_exprs @ interop.size.rev_exprs
-    } in
   { read; write; size }
 
 and bin_sum loc interop depth cds =
@@ -409,27 +437,27 @@ and sum_size_case loc name itr d n =
 
 and read_of_tuple loc interop depth cts =
   let open Read in
-  let itr = bin_core_types loc depth cts in
+  let itr = bin_core_types loc interop depth cts in
   let tuple = `Tuple (bound_vars depth itr.read.rev_exprs |> List.rev) in
   let expr = Expr.bind [Var.indexed depth] tuple in
-  { interop.read with
-    rev_exprs = expr :: itr.read.rev_exprs @ interop.read.rev_exprs
+  { itr.read with
+    rev_exprs = expr :: itr.read.rev_exprs
   }
 
 and write_of_tuple loc interop depth var cts =
   let open Write in
   let rev_bindings = tuple_rev_bindings cts depth var in
-  let itr = bin_core_types loc depth cts in
-  { interop.write with
-    rev_exprs = itr.write.rev_exprs @ interop.write.rev_exprs @ rev_bindings
+  let itr = bin_core_types loc interop depth cts in
+  { itr.write with
+    rev_exprs = itr.write.rev_exprs @ rev_bindings
   }
 
 and size_of_tuple loc interop depth var cts =
   let open Size in
   let rev_bindings = tuple_rev_bindings cts depth var in
-  let itr = bin_core_types loc depth cts in
-  { interop.size with
-    rev_exprs = itr.size.rev_exprs @ interop.size.rev_exprs @ rev_bindings
+  let itr = bin_core_types loc interop depth cts in
+  { itr.size with
+    rev_exprs = itr.size.rev_exprs @ rev_bindings
   }
 
 and sum_tuple loc interop depth var cts name =
@@ -529,7 +557,8 @@ let bin_interop ~loc ~path (rec_flag, type_decls) php =
     List.fold_left type_decls ~init:([], [], [], []) ~f:
       (fun (ftns, reads, writes, sizes) td ->
         let type_name = td.ptype_name.Location.txt in
-        let ftn = Full_type_name.make path type_name in
+        let num_params = List.length td.ptype_params in
+        let ftn = Full_type_name.make ~path type_name num_params in
         let interop =
           let itr = Interop.empty () in
           match td.ptype_kind with

@@ -4,19 +4,23 @@ open StdLabels
 
 module Full_type_name = struct
   type t =
-    { path : string list
-    ; name : string
+    { path       : string list
+    ; name       : string
+    ; num_params : int
     }
 
-  let make_path p =
-    Filename.basename p
-    |> split_on_char '.'
-    |> List.filter ~f:((<>) "ml")
-    |> List.map ~f:String.capitalize
+  let make_path = function
+    | None -> []
+    | Some p ->
+        Filename.basename p
+        |> split_on_char '.'
+        |> List.filter ~f:((<>) "ml")
+        |> List.map ~f:String.capitalize
 
-  let make path name =
+  let make ?path name num_params =
     { path = make_path path
     ; name
+    ; num_params
     }
 
   let path t =
@@ -24,6 +28,9 @@ module Full_type_name = struct
 
   let name t =
     t.name
+
+  let num_params t =
+    t.num_params
 
   let to_string t =
     let p = t |> path |> String.concat ~sep:"." in
@@ -36,9 +43,9 @@ module Full_type_name = struct
       | x::xs -> loop (x::acc) xs in
     loop [] l
 
-  let of_list l =
+  let of_list l num_params =
     let path, name = init_and_last l in
-    { name; path }
+    { name; path; num_params }
 end
 
 module Interop = struct
@@ -151,6 +158,9 @@ module Interop = struct
     let funp ?(path = []) f =
       `Function_pointer (path, f)
 
+    let bin_read_custom ?(conv = []) ftn buf pos =
+      `App (`Read (`Bin_read_custom (ftn, conv, buf, pos)))
+
     let bin_read_int_8bit buf pos =
       `App (`Read (`Bin_read_int_8bit (buf, pos)))
 
@@ -160,6 +170,9 @@ module Interop = struct
     let bin_read_variant_int buf pos =
       `App (`Read (`Bin_read_variant_int (buf, pos)))
 
+    let bin_write_custom ?(conv = []) ftn buf pos value =
+      `App (`Write (`Bin_write_custom (ftn, conv, buf, pos, value)))
+
     let bin_write_int_8bit buf pos value =
       `App (`Write (`Bin_write_int_8bit (buf, pos, value)))
 
@@ -168,6 +181,9 @@ module Interop = struct
 
     let bin_write_variant_int buf pos value =
       `App (`Write (`Bin_write_variant_int (buf, pos, value)))
+
+    let bin_size_custom ?(conv = []) ftn value =
+      `App (`Size (`Bin_size_custom (ftn, conv, value)))
 
     let get_at i e =
       `App (`Get (`At (e, i)))

@@ -26,7 +26,3 @@ lib: [
   "_build/default/src/ppx_bin_prot_interop.cmi"
   "_build/default/META.ppx_bin_prot_interop" {"META"}
 ]
-doc: [
-  "README.md"
-  "LICENSE.txt"
-]

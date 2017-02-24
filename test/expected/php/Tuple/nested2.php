@@ -22,9 +22,9 @@ function bin_write_nested2($buf, $pos, $v) {
     $var_201 = $var_101[0];
     $var_202 = $var_101[1];
     $var_203 = $var_101[2];
-    $pos = bin_prot\write\bin_write_int($buf, $pos, $var_100);
     $var_302 = $var_202[0];
     $var_303 = $var_202[1];
+    $pos = bin_prot\write\bin_write_int($buf, $pos, $var_100);
     $pos = bin_prot\write\bin_write_string($buf, $pos, $var_201);
     $pos = bin_prot\write\bin_write_bool($buf, $pos, $var_302);
     $pos = bin_prot\write\bin_write_int($buf, $pos, $var_303);
@@ -41,9 +41,9 @@ function bin_size_nested2($v) {
     $var_201 = $var_101[0];
     $var_202 = $var_101[1];
     $var_203 = $var_101[2];
-    $size = $size + bin_prot\size\bin_size_int($var_100);
     $var_302 = $var_202[0];
     $var_303 = $var_202[1];
+    $size = $size + bin_prot\size\bin_size_int($var_100);
     $size = $size + bin_prot\size\bin_size_string($var_201);
     $size = $size + bin_prot\size\bin_size_bool($var_302);
     $size = $size + bin_prot\size\bin_size_int($var_303);
