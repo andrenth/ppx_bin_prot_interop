@@ -18,3 +18,9 @@ function bin_size_t_float($v) {
     return $size;
 }
 
+class bin_t_float extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_t_float, bin_write_t_float, bin_size_t_float);
+    }
+}

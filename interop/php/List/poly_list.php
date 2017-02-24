@@ -18,3 +18,9 @@ function bin_size_poly_list($_of__a, $v) {
     return $size;
 }
 
+class bin_poly_list extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_poly_list, bin_write_poly_list, bin_size_poly_list);
+    }
+}

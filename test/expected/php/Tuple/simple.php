@@ -26,3 +26,9 @@ function bin_size_simple($v) {
     return $size;
 }
 
+class bin_simple extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_simple, bin_write_simple, bin_size_simple);
+    }
+}

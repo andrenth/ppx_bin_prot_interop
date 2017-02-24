@@ -18,3 +18,9 @@ function bin_size_t_string($v) {
     return $size;
 }
 
+class bin_t_string extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_t_string, bin_write_t_string, bin_size_t_string);
+    }
+}

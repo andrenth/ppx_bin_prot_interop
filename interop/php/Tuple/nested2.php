@@ -52,3 +52,9 @@ function bin_size_nested2($v) {
     return $size;
 }
 
+class bin_nested2 extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_nested2, bin_write_nested2, bin_size_nested2);
+    }
+}

@@ -315,10 +315,74 @@ let type_header ?(pad = 0) ftn =
 let define_function ?(pad = 0) fn =
   sprintf "%s\n\n" (string_of_interop ~pad fn)
 
-let write_interop ?(pad = 0) ~read ~write ~size =
+let function_prefixes = ["bin_read_"; "bin_write_"; "bin_size_"]
+
+let define_standard_typeclass ?(pad = 0) name =
+  let fns = List.map function_prefixes ~f:(fun p -> sprintf "%s%s" p name) in
+  let parent_constr_args = String.concat ~sep:", " fns in
+  let indent1 = String.make pad ' ' in
+  let indent2 = String.make (pad + indent_level) ' ' in
+  let indent3 = String.make (pad + 2 * indent_level) ' ' in
+  sprintf "%sclass bin_%s extends bin_prot\\type_class\\type_class {\n"
+    indent1 name
+  ^
+  sprintf "%spublic function __construct()\n%s{\n"
+    indent2 indent2
+  ^
+  sprintf "%sparent::__construct(%s);\n%s}\n%s}\n"
+    indent3 parent_constr_args indent2 indent1
+
+let define_lambda ?(pad = 0) kind name params type_args =
+  let indent k =
+    String.make (pad + k * indent_level) ' ' in
+  let args = String.concat ~sep:", " type_args in
+  let calls =
+    List.map type_args ~f:(fun arg -> sprintf "%s->%s()" arg kind)
+    |> String.concat ~sep:", " in
+  sprintf "%s$this->_%s = function(%s) use (%s) {\n"
+    (indent 1) kind params args
+  ^
+  sprintf "%sbin_%s_%s(%s, %s);\n%s};\n"
+    (indent 2) kind name calls params (indent 1)
+
+let define_higher_order_typeclass ?(pad = 0) name num_params =
+  let constr_params =
+    let arr = Array.make num_params "" in
+    for i = 0 to num_params - 1 do
+      arr.(i) <- sprintf "$bin%d" i
+    done;
+    Array.to_list arr in
+  let indent k =
+    String.make (pad + k * indent_level) ' ' in
+  let constr_params_str = String.concat ~sep:", " constr_params in
+  let lambda_pad = pad + indent_level in
+  sprintf "%sclass bin_%s extends bin_prot\\type_class\\type_class {\n"
+    (indent 0) name
+  ^
+  sprintf "%spublic function __construct(%s)\n%s{\n"
+    (indent 1) constr_params_str (indent 1)
+  ^
+  define_lambda ~pad:lambda_pad "read" name "$buf, $pos" constr_params
+  ^
+  define_lambda ~pad:lambda_pad "write" name "$buf, $pos, $v" constr_params
+  ^
+  define_lambda ~pad:lambda_pad "size" name "$v" constr_params
+  ^
+  sprintf "%s}\n%s}\n" (indent 1) (indent 0)
+
+let define_typeclass ?(pad = 0) ftn =
+  let name       = ftn |> Full_type_name.name in
+  let num_params = ftn |> Full_type_name.num_params in
+  if num_params = 0 then
+    define_standard_typeclass ~pad name
+  else
+    define_higher_order_typeclass ~pad name num_params
+
+let define_interop ?(pad = 0) ~read ~write ~size ftn =
   define_function ~pad read
   ^ define_function ~pad write
   ^ define_function ~pad size
+  ^ define_typeclass ~pad ftn
 
 let mkdir_p path =
   let sep = Filename.dir_sep in
@@ -352,7 +416,7 @@ let interop ~out_dir_base ~full_type_names ~reads ~writes ~sizes =
         let path = ftn |> Full_type_name.path in
         let out_dir = mkdir_p (out_dir_base :: "php" :: path) in
         let file = sprintf "%s%s%s.php" out_dir sep name in
-        let code = write_interop ~pad:0 ~read:r ~write:w ~size:s in
+        let code = define_interop ~pad:0 ~read:r ~write:w ~size:s ftn in
         let ch = open_out file in
         fprintf ch "%s%s%s" header (type_header ftn) code;
         close_out ch;

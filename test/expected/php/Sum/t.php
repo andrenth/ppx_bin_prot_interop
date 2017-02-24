@@ -86,3 +86,9 @@ function bin_size_t($v) {
     return $size;
 }
 
+class bin_t extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_t, bin_write_t, bin_size_t);
+    }
+}

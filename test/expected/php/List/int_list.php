@@ -18,3 +18,9 @@ function bin_size_int_list($v) {
     return $size;
 }
 
+class bin_int_list extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_int_list, bin_write_int_list, bin_size_int_list);
+    }
+}

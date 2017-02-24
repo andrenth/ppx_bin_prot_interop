@@ -18,3 +18,9 @@ function bin_size_t_bool($v) {
     return $size;
 }
 
+class bin_t_bool extends bin_prot\type_class\type_class {
+    public function __construct()
+    {
+        parent::__construct(bin_read_t_bool, bin_write_t_bool, bin_size_t_bool);
+    }
+}
