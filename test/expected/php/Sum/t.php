@@ -20,7 +20,7 @@ function bin_read_t($buf, $pos) {
     case 3:
         return array("D", null);
     default:
-        throw new SumTag();
+        throw new bin_prot\exceptions\SumTag();
     }
     return array($tag, $pos);
 }
@@ -50,7 +50,7 @@ function bin_write_t($buf, $pos, $v) {
         $pos = bin_prot\write\bin_write_int_8bit($buf, $pos, 3);
         return $pos;
     default:
-        throw new SumTag();
+        throw new bin_prot\exceptions\SumTag();
     }
     return $pos;
 }
@@ -81,7 +81,7 @@ function bin_size_t($v) {
         $size = $size + 1;
         return $size;
     default:
-        throw new SumTag();
+        throw new bin_prot\exceptions\SumTag();
     }
     return $size;
 }

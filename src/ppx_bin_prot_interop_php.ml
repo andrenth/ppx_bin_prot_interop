@@ -20,9 +20,9 @@ let string_of_lit = function
   | `String s -> "\"" ^ s ^ "\""
 
 let string_of_error = function
-  | `Empty_type       _ -> "EmptyType"
-  | `No_variant_match   -> "NoVariantMatch"
-  | `Sum_tag            -> "SumTag"
+  | `Empty_type       _ -> "bin_prot\\exceptions\\EmptyType"
+  | `No_variant_match   -> "bin_prot\\exceptions\\NoVariantMatch"
+  | `Sum_tag            -> "bin_prot\\exceptions\\SumTag"
 
 
 let is_builtin = function
