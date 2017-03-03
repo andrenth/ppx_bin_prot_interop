@@ -1,0 +1,24 @@
+B ../_build/default/src
+FLG -open Ppx_bin_prot_interop__
+PKG base
+PKG base.caml
+PKG base.shadow_stdlib
+PKG compiler-libs
+PKG compiler-libs.common
+PKG dynlink
+PKG ocaml-compiler-libs.common
+PKG ocaml-compiler-libs.shadow
+PKG ocaml-migrate-parsetree
+PKG ppx_ast
+PKG ppx_core
+PKG ppx_deriving.api
+PKG ppx_driver
+PKG ppx_driver.print_diff
+PKG ppx_optcomp
+PKG ppx_tools
+PKG ppx_traverse_builtins
+PKG ppx_type_conv
+PKG result
+PKG stdio
+PKG unix
+S .

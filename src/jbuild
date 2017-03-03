@@ -7,4 +7,4 @@
      ppx_tools
      ppx_type_conv
      unix))
-  (preprocess metaquot)))
+  (preprocess no_preprocessing)))

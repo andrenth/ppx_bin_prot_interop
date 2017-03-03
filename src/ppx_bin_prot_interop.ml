@@ -1,14 +1,16 @@
-open Ast_mapper
+(*open Ast_mapper
 open Ast_helper
 open Asttypes
 open Longident
 open Parsetree
-open Ast_convenience
+open Ast_convenience*)
 open Printf
 
 let split_on_char = String.split_on_char
 open StdLabels
 open Ppx_type_conv.Std
+open Ppx_core
+open Ast_builder.Default
 
 open Ppx_bin_prot_interop_impl
 open Interop
@@ -18,7 +20,7 @@ let out_dir_base = "interop"
 let error loc fmt = Location.raise_errorf ~loc fmt
 
 let var_name i =
-  "var_" ^ string_of_int i
+  "var_" ^ Caml.string_of_int i
 
 let is_abstract ct =
   match ct.ptyp_desc with
@@ -33,10 +35,10 @@ let init_and_last l =
   loop [] l
 
 let list_of_lid lid =
-  Longident.flatten lid.Location.txt
+  Longident.flatten_exn lid.Location.txt
 
 let string_of_lid lid =
-  String.concat "." (list_of_lid lid)
+  String.concat ~sep:"." (list_of_lid lid)
 
 module type OF_TYPE = sig
   val function_name : string -> string
@@ -157,7 +159,7 @@ let read_of_record names interop depth =
   let read = interop.read in
   let vars = bound_vars depth read.rev_exprs |> List.rev in
   let r =
-    List.fold_left2 names vars ~init:[] ~f:(fun acc n ct -> (n, ct)::acc)
+    List.fold2_exn names vars ~init:[] ~f:(fun acc n ct -> (n, ct)::acc)
     |> List.rev in
   let record = `Record r in
   let expr = Expr.bind [Var.indexed depth] record in
@@ -321,7 +323,7 @@ and bin_variant loc interop depth row_fields =
   (read_exprs, write_exprs, size_exprs)
 
 and bin_tagged_variant loc depth var label cts =
-  let hash = Btype.hash_variant label in
+  let hash = Ocaml_common.Btype.hash_variant label in
   let itr = bin_core_types loc (Interop.empty ()) depth cts in
   let read_case =
     let open Read in
@@ -359,7 +361,7 @@ and bin_tagged_variant loc depth var label cts =
 and bin_record loc interop depth outer_var lds =
   let names, cts =
     List.map lds ~f:(fun ld -> (ld.pld_name.Location.txt, ld.pld_type))
-    |> List.split in
+    |> List.unzip in
   let itr = bin_core_types loc interop depth cts in
   let read = read_of_record names itr depth in
   let write = write_of_record names itr depth outer_var in
@@ -373,7 +375,9 @@ and bin_sum loc interop depth cds =
     List.fold_left cds ~init:([], [], [], 0) ~f:
       (fun (read_cases, write_cases, size_cases, d) cd ->
         let loc = cd.pcd_loc in
-        if cd.pcd_res <> None then error loc "GADTs are not supported";
+        (match cd.pcd_res with
+        | None -> ()
+        | Some _ -> error loc "GADTs are not supported");
         let name = cd.pcd_name.Location.txt in
         let itr, arg =
           match cd.pcd_args with
@@ -591,7 +595,7 @@ let gen_bin_interop =
 let () =
   let bin_interop =
     Type_conv.add
-      "bin_interop"
+      "bin_prot_interop"
       ~str_type_decl:gen_bin_interop in
   let set = [bin_interop] in
   Type_conv.add_alias "bin_io_interop" set ~str_type_decl:set

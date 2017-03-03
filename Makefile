@@ -1,20 +1,22 @@
-NAME := ppx_bin_prot_interop
-PREFIX := $(shell dirname `opam config var lib`)
+INSTALL_ARGS := $(if $(PREFIX),--prefix $(PREFIX),)
 
 # Default rule
 default:
-	jbuilder build-package $(NAME)
+	jbuilder build @install
 
 install:
-	opam-installer -i --prefix $(PREFIX) $(NAME).install
+	jbuilder install $(INSTALL_ARGS)
 
 uninstall:
-	opam-installer -u --prefix $(PREFIX) $(NAME).install
+	jbuilder uninstall $(INSTALL_ARGS)
 
 reinstall: uninstall install
 
 ppx: default
-	ocamlfind ocamlopt -predicates ppx_driver -o _build/ppx -linkpkg -package ppx_bench -package ppx_bin_prot -package ppx_bin_prot_interop ppx_driver_runner.cmxa
+	ocamlfind ocamlopt -predicates ppx_driver -o _build/ppx -linkpkg \
+		-package ppx_bin_prot         \
+		-package ppx_bin_prot_interop \
+		-package ppx_driver.runner
 
 test: ppx
 	sh test/test_runner.sh
