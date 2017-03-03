@@ -8,8 +8,8 @@ function bin_read_t($buf, $pos) {
     list($var_202, $pos) = \bin_prot\read\bin_read_char($buf, $pos);
     list($var_203, $pos) = \bin_prot\read\bin_read_bool($buf, $pos);
     $var_102 = array($var_202, $var_203);
-    $var_103 = "__dummy__";
     list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
+    $var_103 = "__dummy__";
     switch ($vint) {
     case 65:
         $var_103 = array("A", null);

@@ -28,19 +28,20 @@ function bin_read_t($buf, $pos) {
     case 4:
         return array("X", null);
     case 5:
-        $var_0 = "__dummy__";
         list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
+        $v = "__dummy__";
         switch ($vint) {
         case 77:
             list($var_200, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
-            $var_0 = array("M", $var_200);
+            $v = array("M", $var_200);
             break;
         case 78:
-            $var_0 = array("N", null);
+            $v = array("N", null);
             break;
         default:
             throw new \bin_prot\exceptions\NoVariantMatch();
         }
+        return array($v, $pos);
     case 6:
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_list('\bin_prot\read\bin_read_int', $buf, $pos);
@@ -95,17 +96,18 @@ function bin_write_t($buf, $pos, $v) {
         $value = $v[1];
         switch ($v[0]) {
         case "M":
-            $var_200 = $var_0[1];
+            $var_200 = $v[1];
             $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 77);
             $pos = \bin_prot\write\bin_write_int($buf, $pos, $var_200);
             break;
         case "N":
-            $var_201 = $var_0[1];
+            $var_201 = $v[1];
             $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 78);
             break;
         default:
             throw new \bin_prot\exceptions\NoVariantMatch();
         }
+        return $pos;
     case "Z":
         $pos = \bin_prot\write\bin_write_int_8bit($buf, $pos, 6);
         $value = $v[1];
@@ -164,17 +166,18 @@ function bin_size_t($v) {
         $value = $v[1];
         switch ($v[0]) {
         case "M":
-            $var_200 = $var_0[1];
+            $var_200 = $v[1];
             $size = $size + 4;
             $size = $size + \bin_prot\size\bin_size_int($var_200);
             break;
         case "N":
-            $var_201 = $var_0[1];
+            $var_201 = $v[1];
             $size = $size + 4;
             break;
         default:
             throw new \bin_prot\exceptions\NoVariantMatch();
         }
+        return $size;
     case "Z":
         $size = $size + 1;
         $value = $v[1];

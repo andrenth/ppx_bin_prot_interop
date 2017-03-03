@@ -71,6 +71,8 @@ let expr_of_list = function
   | [x] -> Some x
   | xs  -> Some (`Tuple xs)
 
+(* Since we work with reversed expression lists, this can be used to find
+ * the most recently bound variable in the generated code. *)
 let rec first_bound_variable = function
   | [] -> None
   | `Binding (v::_, _) :: _ -> Some v
@@ -223,8 +225,7 @@ let ends_in_binding = function
   | `Binding _ :: _ -> true
   | _ -> false
 
-let rec bin_core_type loc interop depth ct =
-  let outer_var = value_variable depth in
+let rec bin_core_type loc interop depth outer_var ct =
   match ct.ptyp_desc with
   | Ptyp_constr (lid, cts) ->
       let ftn = Full_type_name.of_list (list_of_lid lid) (List.length cts) in
@@ -254,7 +255,8 @@ let rec bin_core_type loc interop depth ct =
 and bin_core_types loc interop depth cts =
   List.fold_left cts ~init:(interop, depth + depth_delta) ~f:
     (fun (itr, d) ct ->
-      let itr = bin_core_type loc itr d ct in
+      let var = value_variable d in
+      let itr = bin_core_type loc itr d var ct in
       (itr, d + 1))
   |> fst
 
@@ -265,16 +267,16 @@ and bin_variant loc interop depth row_fields =
     let z = ([], []) in
     List.fold_left row_fields ~init:(z, z, z, depth + depth_delta) ~f:
       (fun ((ris, rts), (wis, wts), (sis, sts), depth) row_field ->
+        let var = value_variable outer_depth in
         match row_field with
         | Rtag (label, attrs, constant, cts) ->
-            let var = Var.indexed outer_depth in
             let rt, wt, st, depth = bin_tagged_variant loc depth var label cts in
             ((ris, rt :: rts), (wis, wt :: wts), (sis, st :: sts), depth)
         | Rinherit ct ->
-            let itr = bin_core_type loc (Interop.empty ()) depth ct in
-            let ris = ris @ itr.read.Read.rev_exprs in
-            let wis = wis @ itr.write.Write.rev_exprs in
-            let sis = sis @ itr.size.Size.rev_exprs in
+            let itr = bin_core_type loc (Interop.empty ()) depth var ct in
+            let ris = itr.read.Read.rev_exprs @ ris in
+            let wis = itr.write.Write.rev_exprs @ wis in
+            let sis = itr.size.Size.rev_exprs @ sis in
             ((ris, rts), (wis, wts), (sis, sts), depth + 1)) in
 
   let read_inherited,  read_tagged  = read in
@@ -282,13 +284,13 @@ and bin_variant loc interop depth row_fields =
   let size_inherited,  size_tagged  = size in
 
   let check_inherited exprs = function
-    | [] -> exprs |> List.rev
+    | [] -> exprs
     | es ->
         List.fold_left es ~init:[] ~f:
           (fun acc e ->
             let e_with_ret =
               match first_bound_variable [e] with
-              | Some v -> [e; `Ret [(v :> Expr.t)]]
+              | Some v -> [`Ret [(v :> Expr.t); e]]
               | None -> error loc "variant inheritance bug" in
             match acc with
             | [] -> [`Try (e_with_ret, [`No_variant_match, exprs])]
@@ -300,8 +302,11 @@ and bin_variant loc interop depth row_fields =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = default :: read_tagged |> List.rev in
     let exprs =
-      [ Expr.bind [Var.indexed outer_depth] (Lit.string "__dummy__")
-      ; Expr.bind [Var.named "vint"; Var.named "pos"] read_tag
+      (* It's important for "vint" to be bound before the value variable,
+       * because * read functions return the last bound variable along with the
+       * updated "pos". *)
+      [ Expr.bind [Var.named "vint"; Var.named "pos"] read_tag
+      ; Expr.bind [value_variable depth] (Lit.string "__dummy__")
       ; `Switch (Var.named "vint", cases)
       ] in
     check_inherited exprs read_inherited in
@@ -395,12 +400,15 @@ and bin_sum loc interop depth cds =
 and sum_read_case name arg itr d =
   let exprs =
     let ret = `Ret [`Sum (name, arg)] in
-    let es =
+    let rev_es =
       match itr.read.Read.rev_exprs with
       | [] -> [ret]
-      | es when ends_in_binding es -> ret :: es
-      | es -> es in
-    es |> List.rev in
+      | rev_es when ends_in_binding rev_es -> ret :: rev_es
+      | rev_es ->
+          (match first_bound_variable rev_es with
+          | Some var -> (`Ret [(var :> Expr.t); Var.named "pos"] :: rev_es)
+          | None -> rev_es) in
+    rev_es |> List.rev in
   `Case (Lit.int d, exprs, false)
 
 and sum_write_case loc name itr d n =
@@ -413,12 +421,11 @@ and sum_write_case loc name itr d n =
   let binding = Expr.bind [Var.named "pos"] write_int in
   let exprs =
     let ret = `Ret [Var.named "pos"] in
-    let es =
+    let rev_es =
       match itr.write.Write.rev_exprs with
       | [] -> [ret]
-      | es when ends_in_binding es -> ret :: es
-      | es -> es in
-    es |> List.rev in
+      | rev_es -> ret :: rev_es in
+    rev_es |> List.rev in
   `Case (Lit.string name, binding :: exprs, false)
 
 and sum_size_case loc name itr d n =
@@ -431,12 +438,11 @@ and sum_size_case loc name itr d n =
   let binding = Expr.bind [Var.named "size"] add_int in
   let exprs =
     let ret = `Ret [Var.named "size"] in
-    let es =
+    let rev_es =
       match itr.size.Size.rev_exprs with
       | [] -> [ret]
-      | es when ends_in_binding es -> ret :: es
-      | es -> es in
-    es |> List.rev in
+      | rev_es -> ret :: rev_es in
+    rev_es |> List.rev in
   `Case (Lit.string name, binding :: exprs, false)
 
 and read_of_tuple loc interop depth cts =
@@ -471,7 +477,7 @@ and sum_tuple loc interop depth var cts name =
     match cts with
     | []   -> interop
     | [ct] ->
-        let itr = bin_core_type loc interop depth ct in
+        let itr = bin_core_type loc interop depth value ct in
         let write = itr.write in
         let write =
           Write.{ write with rev_exprs = write.rev_exprs @ [binding] } in
@@ -512,26 +518,27 @@ and sum_record loc interop depth var lds =
 
 and read_of_variant interop exprs =
   let open Read in
-  { interop.read with rev_exprs = exprs @ interop.read.rev_exprs }
+  { interop.read with rev_exprs = List.rev exprs @ interop.read.rev_exprs }
 
 and write_of_variant interop exprs =
   let open Write in
-  { interop.write with rev_exprs = exprs @ interop.write.rev_exprs }
+  { interop.write with rev_exprs = List.rev exprs @ interop.write.rev_exprs }
 
 and size_of_variant interop exprs =
   let open Size in
-  { interop.size with rev_exprs = exprs @ interop.size.rev_exprs }
+  { interop.size with rev_exprs = List.rev exprs @ interop.size.rev_exprs }
 
 let make_read_function type_name read =
   let open Read in
   let params =
     Var.named "pos" :: Var.named "buf" :: read.readers |> List.rev in
   let function_body =
-    let rev_exprs = read.rev_exprs in
     let ret =
-      match first_bound_variable rev_exprs with
-      | Some var -> (`Ret [(var :> Expr.t); Var.named "pos"] :: rev_exprs)
-      | None -> rev_exprs in
+      (* Return the "first" bound variable (which, given the expression list
+       * is reversed, is actually the last one) if there's one. *)
+      match first_bound_variable read.rev_exprs with
+      | Some var -> (`Ret [(var :> Expr.t); Var.named "pos"] :: read.rev_exprs)
+      | None -> read.rev_exprs in
     ret |> List.rev in
   Fun_decl.make (Read.function_name type_name) params function_body
 
@@ -571,7 +578,7 @@ let bin_interop ~loc ~path (rec_flag, type_decls) php =
           | Ptype_open -> error loc "open types not yet supported"
           | Ptype_abstract ->
               match td.ptype_manifest with
-              | Some ct -> bin_core_type loc itr 0 ct
+              | Some ct -> bin_core_type loc itr 0 (Var.named "v") ct
               | None -> error loc "nil not implemented" in
         let read  = make_read_function type_name interop.read in
         let write = make_write_function type_name interop.write in
