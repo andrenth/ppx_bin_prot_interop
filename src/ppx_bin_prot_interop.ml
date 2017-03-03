@@ -84,8 +84,8 @@ let value_variable depth =
 
 let depth_delta = 100
 
-let read_of_constr ftn cts interop depth =
-  let vars = [Var.indexed depth; Var.named "pos"] in
+let read_of_constr ftn cts interop var =
+  let vars = [var; Var.named "pos"] in
   let conv = List.map cts ~f:(fun ct -> of_type (module Read) ct) in
   let reader_params =
     List.filter cts ~f:is_abstract
@@ -96,27 +96,25 @@ let read_of_constr ftn cts interop depth =
   ; rev_exprs = expr :: interop.read.rev_exprs
   }
 
-let write_of_constr ftn cts interop depth =
+let write_of_constr ftn cts interop var =
   let conv = List.map cts ~f:(fun ct -> of_type (module Write) ct) in
   let writer_params =
     List.filter cts ~f:is_abstract
     |> List.map ~f:(of_type (module Write)) in
   let expr =
-    let v = value_variable depth in
-    Expr.bind [Var.named "pos"] (Write.call ~conv ftn v) in
+    Expr.bind [Var.named "pos"] (Write.call ~conv ftn var) in
   let open Write in
   { writers   = writer_params @ interop.write.writers
   ; rev_exprs = expr :: interop.write.rev_exprs
   }
 
-let size_of_constr ftn cts interop depth =
+let size_of_constr ftn cts interop var =
   let conv = List.map cts ~f:(fun ct -> of_type (module Size) ct) in
   let sizer_params =
     List.filter cts ~f:is_abstract
     |> List.map ~f:(of_type (module Size)) in
   let expr =
-    let v = value_variable depth in
-    let sum = Expr.add (Var.named "size") (Size.call ~conv ftn v) in
+    let sum = Expr.add (Var.named "size") (Size.call ~conv ftn var) in
     Expr.bind [Var.named "size"] sum in
   let open Size in
   { sizers    = sizer_params @ interop.size.sizers
@@ -229,9 +227,9 @@ let rec bin_core_type loc interop depth outer_var ct =
   match ct.ptyp_desc with
   | Ptyp_constr (lid, cts) ->
       let ftn = Full_type_name.of_list (list_of_lid lid) (List.length cts) in
-      let read  = read_of_constr ftn cts interop depth in
-      let write = write_of_constr ftn cts interop depth in
-      let size  = size_of_constr ftn cts interop depth in
+      let read  = read_of_constr ftn cts interop outer_var in
+      let write = write_of_constr ftn cts interop (Expr.var outer_var) in
+      let size  = size_of_constr ftn cts interop (Expr.var outer_var) in
       { read; write; size }
   | Ptyp_tuple cts ->
       let read  = read_of_tuple loc interop depth cts in
@@ -239,7 +237,7 @@ let rec bin_core_type loc interop depth outer_var ct =
       let size  = size_of_tuple loc interop depth outer_var cts in
       { read; write; size }
   | Ptyp_variant (row_fields, closed_flag, labels) ->
-      let res, wes, ses = bin_variant loc interop depth row_fields in
+      let res, wes, ses = bin_variant loc interop depth outer_var row_fields in
       let read = read_of_variant interop res in
       let write = write_of_variant interop wes in
       let size = size_of_variant interop ses in
@@ -260,7 +258,7 @@ and bin_core_types loc interop depth cts =
       (itr, d + 1))
   |> fst
 
-and bin_variant loc interop depth row_fields =
+and bin_variant loc interop depth outer_var row_fields =
   let outer_depth = depth in
 
   let read, write, size, _ =
@@ -273,57 +271,59 @@ and bin_variant loc interop depth row_fields =
             let rt, wt, st, depth = bin_tagged_variant loc depth var label cts in
             ((ris, rt :: rts), (wis, wt :: wts), (sis, st :: sts), depth)
         | Rinherit ct ->
-            let itr = bin_core_type loc (Interop.empty ()) depth var ct in
-            let ris = itr.read.Read.rev_exprs @ ris in
-            let wis = itr.write.Write.rev_exprs @ wis in
-            let sis = itr.size.Size.rev_exprs @ sis in
+            let itr = bin_core_type loc interop depth outer_var ct in
+            let ris = ris @ itr.read.Read.rev_exprs in
+            let wis = wis @ itr.write.Write.rev_exprs in
+            let sis = sis @ itr.size.Size.rev_exprs in
             ((ris, rts), (wis, wts), (sis, sts), depth + 1)) in
 
   let read_inherited,  read_tagged  = read in
   let write_inherited, write_tagged = write in
   let size_inherited,  size_tagged  = size in
 
-  let check_inherited exprs = function
+  let check_inherited ~return_variable exprs = function
     | [] -> exprs
     | es ->
         List.fold_left es ~init:[] ~f:
           (fun acc e ->
             let e_with_ret =
               match first_bound_variable [e] with
-              | Some v -> [`Ret [(v :> Expr.t); e]]
+              | Some v -> [e; `Ret [(v :> Expr.t)]]
               | None -> error loc "variant inheritance bug" in
+            let ret = `Ret [return_variable] in
             match acc with
-            | [] -> [`Try (e_with_ret, [`No_variant_match, exprs])]
-            | _  -> [`Try (e_with_ret, [`No_variant_match, acc])]) in
+            | [] -> [`Try (e_with_ret, [`No_variant_match, exprs @ [ret]])]
+            | _  -> [`Try (e_with_ret, [`No_variant_match, acc @ [ret]])]) in
 
   let read_exprs =
     let read_tag =
       Expr.bin_read_variant_int (Var.named "buf") (Var.named "pos") in
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = default :: read_tagged |> List.rev in
-    let exprs =
+    let var = value_variable depth in
+    let exprs : Expr.t list =
       (* It's important for "vint" to be bound before the value variable,
-       * because * read functions return the last bound variable along with the
-       * updated "pos". *)
+       * because * read functions return the last bound variable along with
+       * the updated "pos". *)
       [ Expr.bind [Var.named "vint"; Var.named "pos"] read_tag
-      ; Expr.bind [value_variable depth] (Lit.string "__dummy__")
+      ; Expr.bind [var] (Lit.string "__dummy__")
       ; `Switch (Var.named "vint", cases)
       ] in
-    check_inherited exprs read_inherited in
+    check_inherited ~return_variable:var exprs read_inherited in
 
   let write_exprs =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = (default :: write_tagged) |> List.rev in
     let v = value_variable depth in
     let expr = `Switch (Expr.get_tag v, cases) in
-    check_inherited [expr] write_inherited in
+    check_inherited ~return_variable:(Var.named "pos") [expr] write_inherited in
 
   let size_exprs =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = (default :: size_tagged) |> List.rev in
     let v = value_variable depth in
     let expr = `Switch (Expr.get_tag v, cases) in
-    check_inherited [expr] size_inherited in
+    check_inherited ~return_variable:(Var.named "size") [expr] size_inherited in
 
   (read_exprs, write_exprs, size_exprs)
 
@@ -456,7 +456,7 @@ and read_of_tuple loc interop depth cts =
 
 and write_of_tuple loc interop depth var cts =
   let open Write in
-  let rev_bindings = tuple_rev_bindings cts depth var in
+  let rev_bindings = tuple_rev_bindings cts depth (Expr.var var) in
   let itr = bin_core_types loc interop depth cts in
   { itr.write with
     rev_exprs = itr.write.rev_exprs @ rev_bindings
@@ -464,7 +464,7 @@ and write_of_tuple loc interop depth var cts =
 
 and size_of_tuple loc interop depth var cts =
   let open Size in
-  let rev_bindings = tuple_rev_bindings cts depth var in
+  let rev_bindings = tuple_rev_bindings cts depth (Expr.var var) in
   let itr = bin_core_types loc interop depth cts in
   { itr.size with
     rev_exprs = itr.size.rev_exprs @ rev_bindings

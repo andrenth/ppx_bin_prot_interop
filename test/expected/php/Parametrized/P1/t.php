@@ -3,8 +3,8 @@
 namespace Parametrized\P1;
 
 function bin_read_t($_of__a, $buf, $pos) {
-    list($var_0, $pos) = \bin_prot\read\bin_read_list($_of__a, $buf, $pos);
-    return array($var_0, $pos);
+    list($v, $pos) = \bin_prot\read\bin_read_list($_of__a, $buf, $pos);
+    return array($v, $pos);
 }
 
 function bin_write_t($_of__a, $buf, $pos, $v) {

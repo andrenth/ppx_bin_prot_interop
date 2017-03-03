@@ -149,6 +149,8 @@ module Interop = struct
       | `Default of t list
       ]
 
+    let var : Var.t -> t = fun v -> (v :> t)
+
     let add e1 e2 =
       `Add (e1, e2)
 

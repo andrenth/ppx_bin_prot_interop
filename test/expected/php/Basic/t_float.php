@@ -3,8 +3,8 @@
 namespace Basic;
 
 function bin_read_t_float($buf, $pos) {
-    list($var_0, $pos) = \bin_prot\read\bin_read_float($buf, $pos);
-    return array($var_0, $pos);
+    list($v, $pos) = \bin_prot\read\bin_read_float($buf, $pos);
+    return array($v, $pos);
 }
 
 function bin_write_t_float($buf, $pos, $v) {

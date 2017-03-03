@@ -3,8 +3,8 @@
 namespace List;
 
 function bin_read_int_list($buf, $pos) {
-    list($var_0, $pos) = \bin_prot\read\bin_read_list('\bin_prot\read\bin_read_int', $buf, $pos);
-    return array($var_0, $pos);
+    list($v, $pos) = \bin_prot\read\bin_read_list('\bin_prot\read\bin_read_int', $buf, $pos);
+    return array($v, $pos);
 }
 
 function bin_write_int_list($buf, $pos, $v) {

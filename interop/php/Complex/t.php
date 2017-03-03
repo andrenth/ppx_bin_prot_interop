@@ -6,11 +6,11 @@ function bin_read_t($buf, $pos) {
     list($tag, $pos) = \bin_prot\read\bin_read_int_8bit($buf, $pos);
     switch ($tag) {
     case 0:
-        list($var_0, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
-        return array("A", $var_0);
+        list($value, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
+        return array("A", $value);
     case 1:
-        list($var_0, $pos) = bin_read_u($buf, $pos);
-        return array("B", $var_0);
+        list($value, $pos) = bin_read_u($buf, $pos);
+        return array("B", $value);
     case 2:
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_float($buf, $pos);
@@ -28,20 +28,26 @@ function bin_read_t($buf, $pos) {
     case 4:
         return array("X", null);
     case 5:
-        list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
-        $v = "__dummy__";
-        switch ($vint) {
-        case 77:
-            list($var_200, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
-            $v = array("M", $var_200);
-            break;
-        case 78:
-            $v = array("N", null);
-            break;
-        default:
-            throw new \bin_prot\exceptions\NoVariantMatch();
+        try {
+            list($value, $pos) = bin_read_x($buf, $pos);
+            return $value;
         }
-        return array($v, $pos);
+        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+            list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
+            $v = "__dummy__";
+            switch ($vint) {
+            case 77:
+                list($var_201, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
+                $v = array("M", $var_201);
+                break;
+            case 78:
+                $v = array("N", null);
+                break;
+            default:
+                throw new \bin_prot\exceptions\NoVariantMatch();
+            }
+            return $v;
+        }
     case 6:
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_list('\bin_prot\read\bin_read_int', $buf, $pos);
@@ -58,12 +64,12 @@ function bin_write_t($buf, $pos, $v) {
     case "A":
         $pos = \bin_prot\write\bin_write_int_8bit($buf, $pos, 0);
         $value = $v[1];
-        $pos = \bin_prot\write\bin_write_int($buf, $pos, $v);
+        $pos = \bin_prot\write\bin_write_int($buf, $pos, $value);
         return $pos;
     case "B":
         $pos = \bin_prot\write\bin_write_int_8bit($buf, $pos, 1);
         $value = $v[1];
-        $pos = bin_write_u($buf, $pos, $v);
+        $pos = bin_write_u($buf, $pos, $value);
         return $pos;
     case "C":
         $pos = \bin_prot\write\bin_write_int_8bit($buf, $pos, 2);
@@ -94,18 +100,25 @@ function bin_write_t($buf, $pos, $v) {
     case "Y":
         $pos = \bin_prot\write\bin_write_int_8bit($buf, $pos, 5);
         $value = $v[1];
-        switch ($v[0]) {
-        case "M":
-            $var_200 = $v[1];
-            $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 77);
-            $pos = \bin_prot\write\bin_write_int($buf, $pos, $var_200);
-            break;
-        case "N":
-            $var_201 = $v[1];
-            $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 78);
-            break;
-        default:
-            throw new \bin_prot\exceptions\NoVariantMatch();
+        try {
+            $pos = bin_write_x($buf, $pos, $value);
+            return $pos;
+        }
+        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+            switch ($v[0]) {
+            case "M":
+                $var_201 = $v[1];
+                $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 77);
+                $pos = \bin_prot\write\bin_write_int($buf, $pos, $var_201);
+                break;
+            case "N":
+                $var_202 = $v[1];
+                $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 78);
+                break;
+            default:
+                throw new \bin_prot\exceptions\NoVariantMatch();
+            }
+            return $pos;
         }
         return $pos;
     case "Z":
@@ -128,12 +141,12 @@ function bin_size_t($v) {
     case "A":
         $size = $size + 1;
         $value = $v[1];
-        $size = $size + \bin_prot\size\bin_size_int($v);
+        $size = $size + \bin_prot\size\bin_size_int($value);
         return $size;
     case "B":
         $size = $size + 1;
         $value = $v[1];
-        $size = $size + bin_size_u($v);
+        $size = $size + bin_size_u($value);
         return $size;
     case "C":
         $size = $size + 1;
@@ -164,18 +177,25 @@ function bin_size_t($v) {
     case "Y":
         $size = $size + 1;
         $value = $v[1];
-        switch ($v[0]) {
-        case "M":
-            $var_200 = $v[1];
-            $size = $size + 4;
-            $size = $size + \bin_prot\size\bin_size_int($var_200);
-            break;
-        case "N":
-            $var_201 = $v[1];
-            $size = $size + 4;
-            break;
-        default:
-            throw new \bin_prot\exceptions\NoVariantMatch();
+        try {
+            $size = $size + bin_size_x($value);
+            return $size;
+        }
+        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+            switch ($v[0]) {
+            case "M":
+                $var_201 = $v[1];
+                $size = $size + 4;
+                $size = $size + \bin_prot\size\bin_size_int($var_201);
+                break;
+            case "N":
+                $var_202 = $v[1];
+                $size = $size + 4;
+                break;
+            default:
+                throw new \bin_prot\exceptions\NoVariantMatch();
+            }
+            return $size;
         }
         return $size;
     case "Z":
