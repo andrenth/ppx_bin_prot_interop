@@ -20,9 +20,9 @@ let string_of_lit = function
   | `String s -> "\"" ^ s ^ "\""
 
 let string_of_error = function
-  | `Empty_type       _ -> "bin_prot\\exceptions\\EmptyType"
-  | `No_variant_match   -> "bin_prot\\exceptions\\NoVariantMatch"
-  | `Sum_tag            -> "bin_prot\\exceptions\\SumTag"
+  | `Empty_type       _ -> "\\bin_prot\\exceptions\\EmptyType"
+  | `No_variant_match   -> "\\bin_prot\\exceptions\\NoVariantMatch"
+  | `Sum_tag            -> "\\bin_prot\\exceptions\\SumTag"
 
 
 let is_builtin = function
@@ -111,9 +111,9 @@ let rec string_of_expr ?(pad = 0) expr =
       end
   | `Function_pointer ([], f) ->
       let ns =
-        if starts_with "bin_read_" f       then "bin_prot\\read"
-        else if starts_with "bin_write_" f then "bin_prot\\write"
-        else if starts_with "bin_size_"  f then "bin_prot\\size"
+        if starts_with "bin_read_" f       then "\\bin_prot\\read"
+        else if starts_with "bin_write_" f then "\\bin_prot\\write"
+        else if starts_with "bin_size_"  f then "\\bin_prot\\size"
         else failwith (sprintf "unexpected function reference '%s'" f) in
       sprintf "'%s\\%s'" ns f
   | `Function_pointer (path, f) ->
@@ -138,7 +138,7 @@ and string_of_app = function
   | `Get   fn -> string_of_get_function   fn
 
 and string_of_read_function fn =
-  let ns = "bin_prot\\read" in
+  let ns = "\\bin_prot\\read" in
   let to_string = string_of_expr in
   match fn with
   | `Bin_read_int_8bit (buf, pos) ->
@@ -184,7 +184,7 @@ and string_of_read_function fn =
       sprintf "%s(%s, %s, %s)" full reader_args (to_string buf) (to_string pos)
 
 and string_of_write_function fn =
-  let ns = "bin_prot\\write" in
+  let ns = "\\bin_prot\\write" in
   let to_string = string_of_expr in
   match fn with
   | `Bin_write_int_8bit (buf, pos, value) ->
@@ -232,7 +232,7 @@ and string_of_write_function fn =
         full writer_args (to_string buf) (to_string pos) (to_string value)
 
 and string_of_size_function fn =
-  let ns = "bin_prot\\size" in
+  let ns = "\\bin_prot\\size" in
   let to_string = string_of_expr in
   match fn with
   | `Bin_size_int_8bit value ->
@@ -308,6 +308,11 @@ let string_of_interop ?(pad = 0) f =
 let header =
   "<?php\n\n"
 
+let make_namespace ftn =
+  ftn
+  |> Full_type_name.path
+  |> String.concat ~sep:"\\"
+
 let type_header ?(pad = 0) ftn =
   let ns = ftn |> Full_type_name.path |> String.concat ~sep:"\\" in
   sprintf "namespace %s;\n\n" ns
@@ -317,13 +322,16 @@ let define_function ?(pad = 0) fn =
 
 let function_prefixes = ["bin_read_"; "bin_write_"; "bin_size_"]
 
-let define_standard_typeclass ?(pad = 0) name =
-  let fns = List.map function_prefixes ~f:(fun p -> sprintf "%s%s" p name) in
+let define_standard_typeclass ?(pad = 0) ftn =
+  let name = ftn |> Full_type_name.name in
+  let ns = make_namespace ftn in
+  let fns =
+    List.map function_prefixes ~f:(fun p -> sprintf "'\\%s\\%s%s'" ns p name) in
   let parent_constr_args = String.concat ~sep:", " fns in
   let indent1 = String.make pad ' ' in
   let indent2 = String.make (pad + indent_level) ' ' in
   let indent3 = String.make (pad + 2 * indent_level) ' ' in
-  sprintf "%sclass bin_%s extends bin_prot\\type_class\\type_class {\n"
+  sprintf "%sclass bin_%s extends \\bin_prot\\type_class\\type_class {\n"
     indent1 name
   ^
   sprintf "%spublic function __construct()\n%s{\n"
@@ -345,7 +353,9 @@ let define_lambda ?(pad = 0) kind name params type_args =
   sprintf "%sbin_%s_%s(%s, %s);\n%s};\n"
     (indent 2) kind name calls params (indent 1)
 
-let define_higher_order_typeclass ?(pad = 0) name num_params =
+let define_higher_order_typeclass ?(pad = 0) ftn =
+  let name       = ftn |> Full_type_name.name in
+  let num_params = ftn |> Full_type_name.num_params in
   let constr_params =
     let arr = Array.make num_params "" in
     for i = 0 to num_params - 1 do
@@ -356,7 +366,7 @@ let define_higher_order_typeclass ?(pad = 0) name num_params =
     String.make (pad + k * indent_level) ' ' in
   let constr_params_str = String.concat ~sep:", " constr_params in
   let lambda_pad = pad + indent_level in
-  sprintf "%sclass bin_%s extends bin_prot\\type_class\\type_class {\n"
+  sprintf "%sclass bin_%s extends \\bin_prot\\type_class\\type_class {\n"
     (indent 0) name
   ^
   sprintf "%spublic function __construct(%s)\n%s{\n"
@@ -371,12 +381,9 @@ let define_higher_order_typeclass ?(pad = 0) name num_params =
   sprintf "%s}\n%s}\n" (indent 1) (indent 0)
 
 let define_typeclass ?(pad = 0) ftn =
-  let name       = ftn |> Full_type_name.name in
-  let num_params = ftn |> Full_type_name.num_params in
-  if num_params = 0 then
-    define_standard_typeclass ~pad name
-  else
-    define_higher_order_typeclass ~pad name num_params
+  match Full_type_name.num_params ftn with
+  | 0 -> define_standard_typeclass ~pad ftn
+  | _ -> define_higher_order_typeclass ~pad ftn
 
 let define_interop ?(pad = 0) ~read ~write ~size ftn =
   define_function ~pad read

@@ -31,9 +31,9 @@ function bin_size_u($v) {
     return $size;
 }
 
-class bin_u extends bin_prot\type_class\type_class {
+class bin_u extends \bin_prot\type_class\type_class {
     public function __construct()
     {
-        parent::__construct(bin_read_u, bin_write_u, bin_size_u);
+        parent::__construct('\Module\bin_read_u', '\Module\bin_write_u', '\Module\bin_size_u');
     }
 }
