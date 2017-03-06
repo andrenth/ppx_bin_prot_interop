@@ -1,0 +1,5 @@
+(executables
+ ((names (server))
+  (libraries
+   (core async))
+  (preprocess (pps (ppx_bin_prot ppx_bin_prot_interop)))))

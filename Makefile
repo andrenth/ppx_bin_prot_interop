@@ -12,6 +12,9 @@ uninstall:
 
 reinstall: uninstall install
 
+example:
+	jbuilder build examples/server.exe
+
 ppx: default
 	ocamlfind ocamlopt -predicates ppx_driver -o _build/ppx -linkpkg \
 		-package ppx_bin_prot         \
