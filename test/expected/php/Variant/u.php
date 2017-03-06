@@ -11,7 +11,7 @@ function bin_read_u($buf, $pos) {
         $v = array("X", $var_200);
         break;
     default:
-        throw new \bin_prot\exceptions\NoVariantMatch();
+        throw new \bin_prot\NoVariantMatch();
     }
     return array($v, $pos);
 }
@@ -24,7 +24,7 @@ function bin_write_u($buf, $pos, $v) {
         $pos = \bin_prot\write\bin_write_float($buf, $pos, $var_200);
         break;
     default:
-        throw new \bin_prot\exceptions\NoVariantMatch();
+        throw new \bin_prot\NoVariantMatch();
     }
     return $pos;
 }
@@ -38,7 +38,7 @@ function bin_size_u($v) {
         $size = $size + \bin_prot\size\bin_size_float($var_200);
         break;
     default:
-        throw new \bin_prot\exceptions\NoVariantMatch();
+        throw new \bin_prot\NoVariantMatch();
     }
     return $size;
 }

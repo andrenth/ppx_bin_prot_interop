@@ -23,7 +23,7 @@ function bin_read_t($buf, $pos) {
         $v = array("D", null);
         break;
     default:
-        throw new \bin_prot\exceptions\NoVariantMatch();
+        throw new \bin_prot\NoVariantMatch();
     }
     return array($v, $pos);
 }
@@ -52,7 +52,7 @@ function bin_write_t($buf, $pos, $v) {
         $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 68);
         break;
     default:
-        throw new \bin_prot\exceptions\NoVariantMatch();
+        throw new \bin_prot\NoVariantMatch();
     }
     return $pos;
 }
@@ -82,7 +82,7 @@ function bin_size_t($v) {
         $size = $size + 4;
         break;
     default:
-        throw new \bin_prot\exceptions\NoVariantMatch();
+        throw new \bin_prot\NoVariantMatch();
     }
     return $size;
 }

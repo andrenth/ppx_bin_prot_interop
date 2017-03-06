@@ -51,13 +51,9 @@ end
 module Interop = struct
   module Error = struct
     type t =
-      [ `Empty_type of string
-      | `No_variant_match
+      [ `No_variant_match
       | `Sum_tag
       ]
-    let to_string = function
-      | `Empty_type s -> "Empty_type " ^ s
-      | `No_variant_match -> "No_variant_match"
   end
 
   module Var = struct

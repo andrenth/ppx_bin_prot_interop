@@ -32,7 +32,7 @@ function bin_read_t($buf, $pos) {
             list($value, $pos) = bin_read_x($buf, $pos);
             return array($value, $pos);
         }
-        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+        catch (\bin_prot\NoVariantMatch $e) {
             list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
             $v = "__dummy__";
             switch ($vint) {
@@ -44,7 +44,7 @@ function bin_read_t($buf, $pos) {
                 $v = array("N", null);
                 break;
             default:
-                throw new \bin_prot\exceptions\NoVariantMatch();
+                throw new \bin_prot\NoVariantMatch();
             }
             return array($v, $pos);
         }
@@ -54,7 +54,7 @@ function bin_read_t($buf, $pos) {
         $var_0 = array("m" => $var_100, "n" => $var_101);
         return array(array("Z", $var_0), $pos);
     default:
-        throw new \bin_prot\exceptions\SumTag();
+        throw new \bin_prot\SumTag();
     }
     return array($tag, $pos);
 }
@@ -104,7 +104,7 @@ function bin_write_t($buf, $pos, $v) {
             $pos = bin_write_x($buf, $pos, $value);
             return $pos;
         }
-        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+        catch (\bin_prot\NoVariantMatch $e) {
             switch ($v[0]) {
             case "M":
                 $var_201 = $v[1];
@@ -116,7 +116,7 @@ function bin_write_t($buf, $pos, $v) {
                 $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 78);
                 break;
             default:
-                throw new \bin_prot\exceptions\NoVariantMatch();
+                throw new \bin_prot\NoVariantMatch();
             }
             return $pos;
         }
@@ -130,7 +130,7 @@ function bin_write_t($buf, $pos, $v) {
         $pos = \bin_prot\write\bin_write_list('\bin_prot\write\bin_write_int', $buf, $pos, $var_101);
         return $pos;
     default:
-        throw new \bin_prot\exceptions\SumTag();
+        throw new \bin_prot\SumTag();
     }
     return $pos;
 }
@@ -181,7 +181,7 @@ function bin_size_t($v) {
             $size = $size + bin_size_x($value);
             return $size;
         }
-        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+        catch (\bin_prot\NoVariantMatch $e) {
             switch ($v[0]) {
             case "M":
                 $var_201 = $v[1];
@@ -193,7 +193,7 @@ function bin_size_t($v) {
                 $size = $size + 4;
                 break;
             default:
-                throw new \bin_prot\exceptions\NoVariantMatch();
+                throw new \bin_prot\NoVariantMatch();
             }
             return $size;
         }
@@ -207,7 +207,7 @@ function bin_size_t($v) {
         $size = $size + \bin_prot\size\bin_size_list('\bin_prot\size\bin_size_int', $var_101);
         return $size;
     default:
-        throw new \bin_prot\exceptions\SumTag();
+        throw new \bin_prot\SumTag();
     }
     return $size;
 }

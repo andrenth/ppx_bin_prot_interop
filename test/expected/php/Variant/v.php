@@ -7,12 +7,12 @@ function bin_read_v($buf, $pos) {
         list($v, $pos) = bin_read_u($buf, $pos);
         return array($v, $pos);
     }
-    catch (\bin_prot\exceptions\NoVariantMatch $e) {
+    catch (\bin_prot\NoVariantMatch $e) {
         try {
             list($v, $pos) = bin_read_t($buf, $pos);
             return array($v, $pos);
         }
-        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+        catch (\bin_prot\NoVariantMatch $e) {
             list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
             $v = "__dummy__";
             switch ($vint) {
@@ -20,7 +20,7 @@ function bin_read_v($buf, $pos) {
                 $v = array("Y", null);
                 break;
             default:
-                throw new \bin_prot\exceptions\NoVariantMatch();
+                throw new \bin_prot\NoVariantMatch();
             }
             return array($v, $pos);
         }
@@ -33,19 +33,19 @@ function bin_write_v($buf, $pos, $v) {
         $pos = bin_write_u($buf, $pos, $v);
         return $pos;
     }
-    catch (\bin_prot\exceptions\NoVariantMatch $e) {
+    catch (\bin_prot\NoVariantMatch $e) {
         try {
             $pos = bin_write_t($buf, $pos, $v);
             return $pos;
         }
-        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+        catch (\bin_prot\NoVariantMatch $e) {
             switch ($v[0]) {
             case "Y":
                 $var_202 = $v[1];
                 $pos = \bin_prot\write\bin_write_variant_int($buf, $pos, 89);
                 break;
             default:
-                throw new \bin_prot\exceptions\NoVariantMatch();
+                throw new \bin_prot\NoVariantMatch();
             }
             return $pos;
         }
@@ -60,19 +60,19 @@ function bin_size_v($v) {
         $size = $size + bin_size_u($v);
         return $size;
     }
-    catch (\bin_prot\exceptions\NoVariantMatch $e) {
+    catch (\bin_prot\NoVariantMatch $e) {
         try {
             $size = $size + bin_size_t($v);
             return $size;
         }
-        catch (\bin_prot\exceptions\NoVariantMatch $e) {
+        catch (\bin_prot\NoVariantMatch $e) {
             switch ($v[0]) {
             case "Y":
                 $var_202 = $v[1];
                 $size = $size + 4;
                 break;
             default:
-                throw new \bin_prot\exceptions\NoVariantMatch();
+                throw new \bin_prot\NoVariantMatch();
             }
             return $size;
         }
