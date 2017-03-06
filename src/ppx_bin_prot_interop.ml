@@ -281,16 +281,16 @@ and bin_variant loc interop depth outer_var row_fields =
   let write_inherited, write_tagged = write in
   let size_inherited,  size_tagged  = size in
 
-  let check_inherited ~return_variable exprs = function
+  let check_inherited ?(try_return = fun v -> [v]) ~catch_return exprs = function
     | [] -> exprs
     | es ->
         List.fold_left es ~init:[] ~f:
           (fun acc e ->
             let e_with_ret =
               match first_bound_variable [e] with
-              | Some v -> [e; `Ret [(v :> Expr.t)]]
+              | Some v -> [e; `Ret (try_return (Expr.var v))]
               | None -> error loc "variant inheritance bug" in
-            let ret = `Ret [return_variable] in
+            let ret = `Ret catch_return in
             match acc with
             | [] -> [`Try (e_with_ret, [`No_variant_match, exprs @ [ret]])]
             | _  -> [`Try (e_with_ret, [`No_variant_match, acc @ [ret]])]) in
@@ -301,7 +301,7 @@ and bin_variant loc interop depth outer_var row_fields =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = default :: read_tagged |> List.rev in
     let var = value_variable depth in
-    let exprs : Expr.t list =
+    let exprs =
       (* It's important for "vint" to be bound before the value variable,
        * because * read functions return the last bound variable along with
        * the updated "pos". *)
@@ -309,21 +309,23 @@ and bin_variant loc interop depth outer_var row_fields =
       ; Expr.bind [var] (Lit.string "__dummy__")
       ; `Switch (Var.named "vint", cases)
       ] in
-    check_inherited ~return_variable:var exprs read_inherited in
+    let try_return = fun v -> [v; Var.named "pos"] in
+    let catch_return = [var; Var.named "pos"] in
+    check_inherited ~try_return ~catch_return exprs read_inherited in
 
   let write_exprs =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = (default :: write_tagged) |> List.rev in
     let v = value_variable depth in
     let expr = `Switch (Expr.get_tag v, cases) in
-    check_inherited ~return_variable:(Var.named "pos") [expr] write_inherited in
+    check_inherited ~catch_return:[Var.named "pos"] [expr] write_inherited in
 
   let size_exprs =
     let default = `Default [`Raise (`No_variant_match, None)] in
     let cases = (default :: size_tagged) |> List.rev in
     let v = value_variable depth in
     let expr = `Switch (Expr.get_tag v, cases) in
-    check_inherited ~return_variable:(Var.named "size") [expr] size_inherited in
+    check_inherited ~catch_return:[Var.named "size"] [expr] size_inherited in
 
   (read_exprs, write_exprs, size_exprs)
 

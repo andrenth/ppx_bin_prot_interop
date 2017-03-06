@@ -30,7 +30,7 @@ function bin_read_t($buf, $pos) {
     case 5:
         try {
             list($value, $pos) = bin_read_x($buf, $pos);
-            return $value;
+            return array($value, $pos);
         }
         catch (\bin_prot\exceptions\NoVariantMatch $e) {
             list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
@@ -46,7 +46,7 @@ function bin_read_t($buf, $pos) {
             default:
                 throw new \bin_prot\exceptions\NoVariantMatch();
             }
-            return $v;
+            return array($v, $pos);
         }
     case 6:
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);

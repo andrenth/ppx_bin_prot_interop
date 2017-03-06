@@ -5,12 +5,12 @@ namespace Variant;
 function bin_read_v($buf, $pos) {
     try {
         list($v, $pos) = bin_read_u($buf, $pos);
-        return $v;
+        return array($v, $pos);
     }
     catch (\bin_prot\exceptions\NoVariantMatch $e) {
         try {
             list($v, $pos) = bin_read_t($buf, $pos);
-            return $v;
+            return array($v, $pos);
         }
         catch (\bin_prot\exceptions\NoVariantMatch $e) {
             list($vint, $pos) = \bin_prot\read\bin_read_variant_int($buf, $pos);
@@ -22,9 +22,9 @@ function bin_read_v($buf, $pos) {
             default:
                 throw new \bin_prot\exceptions\NoVariantMatch();
             }
-            return $v;
+            return array($v, $pos);
         }
-        return $v;
+        return array($v, $pos);
     }
 }
 
