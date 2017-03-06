@@ -10,4 +10,4 @@ type t =
   | X
   | Y of [x | `M of int | `N]
   | Z of { m : string; n : int list }
-  [@@deriving bin_io, bin_io_interop ~php]
+  [@@deriving bin_io_interop ~php]

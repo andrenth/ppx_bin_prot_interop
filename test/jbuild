@@ -1,0 +1,19 @@
+(alias
+ ((name runtest)
+  (deps (test_runner.sh copy_tests test_ppx))
+  (action "./test_runner.sh ${ROOT}")))
+
+(rule
+ ((targets (copy_tests))
+  (action (system "cp ${ROOT}/../../test/*.ml ."))))
+
+(rule
+ ((targets (test_ppx))
+  (action (run ocamlfind ocamlopt -predicates ppx_driver -o test_ppx -linkpkg
+                 -package ppx_bin_prot_interop -package ppx_driver.runner))))
+
+(library
+ ((name test_ppx)
+  (kind ppx_rewriter)
+  (libraries
+   (ppx_core ppx_bin_prot_interop ppx_driver.runner))))

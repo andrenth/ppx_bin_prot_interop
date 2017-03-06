@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 run_test() {
   name=$1
-  ./_build/ppx test/$name.ml > /dev/null
+  ./test_ppx $name.ml > /dev/null
 }
 
 ok_or_error() {
@@ -17,18 +17,21 @@ ok_or_error() {
   fi
 }
 
-rm -rf interop
+build_root=$1
+project_root=$build_root/../..
 
-for t in test/*ml; do
+for t in $build_root/test/*.ml; do
   name=`basename $t .ml`
   echo -n "[-] Generating code for test '$name': "
   ok_or_error run_test $name
 done
 
 for lang in `ls interop`; do
+  expected=$project_root/test/expected
   echo "[-] Checking $lang output"
-  for test in `ls test/expected/$lang`; do
+  for test in `ls $expected/$lang`; do
+    t=`basename $test`
     echo -n "    * $test: "
-    ok_or_error diff -ru test/expected/$lang/$test interop/$lang/$test
+    ok_or_error diff -ru $expected/$lang/$test interop/$lang/$test
   done
 done

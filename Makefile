@@ -12,17 +12,11 @@ uninstall:
 
 reinstall: uninstall install
 
+test:
+	jbuilder build @runtest
+
 example:
 	jbuilder build examples/server.exe
-
-ppx: default
-	ocamlfind ocamlopt -predicates ppx_driver -o _build/ppx -linkpkg \
-		-package ppx_bin_prot         \
-		-package ppx_bin_prot_interop \
-		-package ppx_driver.runner
-
-test: ppx
-	sh test/test_runner.sh
 
 clean:
 	rm -rf _build
