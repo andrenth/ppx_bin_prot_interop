@@ -7,16 +7,16 @@ function bin_read_t($buf, $pos) {
     switch ($tag) {
     case 0:
         list($value, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
-        return array("A", $value);
+        return array(array("A", $value), $pos);
     case 1:
         list($value, $pos) = bin_read_u($buf, $pos);
-        return array("B", $value);
+        return array(array("B", $value), $pos);
     case 2:
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_float($buf, $pos);
         list($var_102, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
         $var_0 = array($var_100, $var_101, $var_102);
-        return array("C", $var_0);
+        return array(array("C", $var_0), $pos);
     case 3:
         list($var_100, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
         list($var_201, $pos) = \bin_prot\read\bin_read_char($buf, $pos);
@@ -24,9 +24,9 @@ function bin_read_t($buf, $pos) {
         $var_101 = array($var_201, $var_202);
         list($var_102, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         $var_0 = array($var_100, $var_101, $var_102);
-        return array("D", $var_0);
+        return array(array("D", $var_0), $pos);
     case 4:
-        return array("X", null);
+        return array(array("X", null), $pos);
     case 5:
         try {
             list($value, $pos) = bin_read_x($buf, $pos);
@@ -52,7 +52,7 @@ function bin_read_t($buf, $pos) {
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_list('\bin_prot\read\bin_read_int', $buf, $pos);
         $var_0 = array("m" => $var_100, "n" => $var_101);
-        return array("Z", $var_0);
+        return array(array("Z", $var_0), $pos);
     default:
         throw new \bin_prot\exceptions\SumTag();
     }

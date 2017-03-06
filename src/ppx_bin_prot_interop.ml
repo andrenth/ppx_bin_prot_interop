@@ -401,7 +401,7 @@ and bin_sum loc interop depth cds =
 
 and sum_read_case name arg itr d =
   let exprs =
-    let ret = `Ret [`Sum (name, arg)] in
+    let ret = `Ret [`Sum (name, arg); Var.named "pos"] in
     let rev_es =
       match itr.read.Read.rev_exprs with
       | [] -> [ret]

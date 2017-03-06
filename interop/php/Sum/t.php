@@ -6,19 +6,19 @@ function bin_read_t($buf, $pos) {
     list($tag, $pos) = \bin_prot\read\bin_read_int_8bit($buf, $pos);
     switch ($tag) {
     case 0:
-        return array("A", null);
+        return array(array("A", null), $pos);
     case 1:
         list($var_100, $pos) = \bin_prot\read\bin_read_int($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_float($buf, $pos);
         $var_0 = array("x" => $var_100, "y" => $var_101);
-        return array("B", $var_0);
+        return array(array("B", $var_0), $pos);
     case 2:
         list($var_100, $pos) = \bin_prot\read\bin_read_string($buf, $pos);
         list($var_101, $pos) = \bin_prot\read\bin_read_char($buf, $pos);
         $var_0 = array($var_100, $var_101);
-        return array("C", $var_0);
+        return array(array("C", $var_0), $pos);
     case 3:
-        return array("D", null);
+        return array(array("D", null), $pos);
     default:
         throw new \bin_prot\exceptions\SumTag();
     }
