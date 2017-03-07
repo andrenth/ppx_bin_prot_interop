@@ -1,7 +1,5 @@
 # ppx\_bin\_prot\_interop
 
-## Introduction
-
 In a few words, ppx\_bin\_prot\_interop is [ppx\_bin\_prot](https://github.com/janestreet/ppx_bin_prot)
 for languages other than OCaml, i.e. a code generator for [bin\_prot](https://github.com/janestreet/bin_prot)
 serializers implemented as a PPX rewriter.
@@ -35,3 +33,33 @@ type t = int [@@deriving bin_io, bin_io_interop ~php]
 After compilation, an `interop` directory will be created, with a subdirectory
 for the specified language, so in the example above the generated code will be
 in `interop/php`.
+
+## OCaml types representation in PHP
+
+### Integers
+
+PHP only has one integer type, `int`, which corresponds to a `long` in C,
+meaning it's either 32 or 64 bits long. Since OCaml integers are 31 or 63 bits
+long, serializing a PHP `int` with `bin_write_int()` can throw an exception.
+
+One can, of course, define RPC types using OCaml's `int32` or `int64` if needed.
+
+### Tuples and lists
+
+OCaml tuples and lists are represented as arrays in PHP (with numeric indices).
+
+### Sum types and polymorphic variants
+
+These are represented as two-element arrays, the first being the label (as a
+string) and the second the corresponding value. Even if the constructor has
+no associated value, a two-element array will be used, with `null` as the
+second element.
+
+So, for example, a type defined as `type t = A of int | B`, will be deserialized
+as, say, `array("A", 42)` for the `A` case and `array("B", null)` for the `B`
+case.
+
+### Records
+
+Records are represented as PHP associative arrays (hash tables), with string
+keys corresponding to the record field names.
