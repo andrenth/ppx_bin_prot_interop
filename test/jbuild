@@ -1,7 +1,7 @@
 (alias
  ((name runtest)
   (deps (test_runner.sh copy_tests test_ppx))
-  (action "./test_runner.sh ${ROOT}")))
+  (action (bash "./test_runner.sh ${ROOT}"))))
 
 (rule
  ((targets (copy_tests))

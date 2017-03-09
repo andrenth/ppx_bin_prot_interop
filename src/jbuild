@@ -1,7 +1,7 @@
 (library
  ((name ppx_bin_prot_interop)
   (public_name ppx_bin_prot_interop)
-  (kind ppx_type_conv_plugin)
+  (kind ppx_deriver)
   (libraries
     (compiler-libs.common
      ppx_tools
