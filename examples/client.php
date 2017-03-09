@@ -16,7 +16,7 @@ function to_string($x) {
     $i = 0;
     foreach ($x as $k => $v) {
         $sep = $i == 0 ? "" : ", ";
-        $s .= "$sep$k => $v";
+        $s .= "$sep$k => $v, ";
     }
     $s .= ")";
     return $s;
